@@ -30,11 +30,13 @@ class Snake {
 	}
 }
 
-class Game {
+var socket;
 
+class Game {
+	
 	constructor(){
 		this.fps = 30;
-		this.socket = null;
+		//this.socket = null;
 		this.nextFrame = null;
 		this.interval = null;
 		this.direction = 'none';
@@ -60,7 +62,7 @@ class Game {
 
 	setDirection(direction) {
 		this.direction = direction;
-		this.socket.send(JSON.stringify({op : "Dir" , value : direction}));
+		socket.send(JSON.stringify({op : "Dir" , value : direction}));
 		Console.log('Sent: Direction ' + direction);
 	}
 
@@ -117,9 +119,9 @@ class Game {
 
 	connect() {
 		
-		this.socket = new WebSocket("ws://"+window.location.host+"/snake");
+		socket = new WebSocket("ws://"+window.location.host+"/snake");
 
-		this.socket.onopen = () => {
+		socket.onopen = () => {
 			
 			// Socket open.. start the game loop.
 			Console.log('Info: WebSocket connection opened.');
@@ -127,21 +129,21 @@ class Game {
 			
 			this.startGameLoop();
 			
-			setInterval(() => this.socket.send('ping'), 5000);
+			setInterval(() => socket.send('ping'), 5000);
 			
 			do {
 				var name = prompt("Please enter a valid name:", "");			
 			} while (name == "" || name == undefined || name == null);
 			
-			this.socket.send(JSON.stringify({op : "Name" , value : name}));
+			socket.send(JSON.stringify({op : "Name" , value : name}));
 		}
 
-		this.socket.onclose = () => {
+		socket.onclose = () => {
 			Console.log('Info: WebSocket closed.');
 			this.stopGameLoop();
 		}
 
-		this.socket.onmessage = (message) => {
+		socket.onmessage = (message) => {
 
 			var packet = JSON.parse(message.data);
 			
@@ -168,15 +170,72 @@ class Game {
 				break;
 			case 'gameNameValid':
 				if(packet.data) {
-					document.getElementById("game-buttons").innerHTML += "<button id=\""+ name +"\">" + name + "</button>";
-					document.getElementById(name).addEventListener("click", joinGame);
+					var btn = document.createElement("BUTTON");
+					
+				    var t = document.createTextNode(packet.name);
+				    btn.appendChild(t);
+				    btn.setAttribute("id", packet.name);
+				    btn.setAttribute("type", "button");
+				    
+				    btn.addEventListener("click", () => this.joinGame());
+				    
+				    document.getElementById("game-buttons").appendChild(btn);
 				}
 				else {
-					newGame();
+					alert("Error: Game name already exists.");
+					this.newGame();
 				}
 				break;
 			}
 		}
+	}
+	
+	matchmaking() {
+	}
+
+	newGame() {
+		do {
+			var name = prompt("Please enter a valid game name:", "");	
+			console.log(name);
+		} while (name == "" || name == undefined);
+		
+		if(name != null)
+			socket.send(JSON.stringify({op : "GameName" , value : name}));
+	}
+
+	joinGame() { //Encontrar forma de pasar el nombre de la partida a value : name.
+		socket.send(JSON.stringify({op : "JoinName" , value : name}));
+		
+		$("#playground").show();
+		$("#console-container").show();
+		$("#game-buttons").hide();
+	}
+
+	enableKeys() {
+		window.addEventListener('keydown', e => {
+			
+			var code = e.keyCode;
+			if (code > 36 && code < 41) {
+				switch (code) {
+				case 37:
+					if (this.direction != 'east')
+						this.setDirection('west');
+					break;
+				case 38:
+					if (this.direction != 'south')
+						this.setDirection('north');
+					break;
+				case 39:
+					if (this.direction != 'west')
+						this.setDirection('east');
+					break;
+				case 40:
+					if (this.direction != 'north')
+						this.setDirection('south');
+					break;
+				}
+			}
+		}, false);
 	}
 }
 
@@ -187,49 +246,6 @@ $(document).ready(function() {
 	game = new Game();
     game.initialize();
     
-    document.getElementById("matchMaking").addEventListener("click", matchmaking);
-    document.getElementById("newGame").addEventListener("click", newGame);
+    document.getElementById("matchMaking").addEventListener("click", () => game.matchmaking());
+    document.getElementById("newGame").addEventListener("click", () => game.newGame());
 });
-
-function matchmaking() {
-}
-
-bool validGameName = false;
-
-function newGame() {
-	do {
-		var name = prompt("Please enter a valid game name:", "");	
-	} while (name == "" || name == undefined || name == null));
-	
-	this.socket.send(JSON.stringify({op : "GameName" , value : name}));
-}
-
-function joinGame() {
-}
-
-function enableKeys() {
-	window.addEventListener('keydown', e => {
-		
-		var code = e.keyCode;
-		if (code > 36 && code < 41) {
-			switch (code) {
-			case 37:
-				if (this.direction != 'east')
-					this.setDirection('west');
-				break;
-			case 38:
-				if (this.direction != 'south')
-					this.setDirection('north');
-				break;
-			case 39:
-				if (this.direction != 'west')
-					this.setDirection('east');
-				break;
-			case 40:
-				if (this.direction != 'north')
-					this.setDirection('south');
-				break;
-			}
-		}
-	}, false);
-}
