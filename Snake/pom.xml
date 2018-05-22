@@ -8,7 +8,7 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
-	<name>Tic-Tac-Toe</name>
+	<name>snake</name>
 	<description>Juego Tic Tac Toe para la asignatura Entornos Multijugador</description>
 
 	<parent>

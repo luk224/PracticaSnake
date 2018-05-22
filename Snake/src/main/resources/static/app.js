@@ -142,7 +142,7 @@ class Game {
 
 	connect() {
 		
-		this.socket = new WebSocket("ws://127.0.0.1:8080/snake");
+		this.socket = new WebSocket("ws://"+window.location.host+"/snake");
 
 		this.socket.onopen = () => {
 			
