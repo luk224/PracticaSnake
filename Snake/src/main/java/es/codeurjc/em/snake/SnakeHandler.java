@@ -1,5 +1,6 @@
 package es.codeurjc.em.snake;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.web.socket.CloseStatus;
@@ -16,28 +17,15 @@ public class SnakeHandler extends TextWebSocketHandler {
 
 	private AtomicInteger snakeIds = new AtomicInteger(0);
 
-	private SnakeGame snakeGame = new SnakeGame();
-
+	private ConcurrentHashMap<String, SnakeGame> SnakeGames = new ConcurrentHashMap<>(); 
+	
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-
 		int id = snakeIds.getAndIncrement();
 
 		Snake s = new Snake(id, session);
 
 		session.getAttributes().put(SNAKE_ATT, s);
-
-		snakeGame.addSnake(s);
-
-		StringBuilder sb = new StringBuilder();
-		for (Snake snake : snakeGame.getSnakes()) {			
-			sb.append(String.format("{\"id\": %d, \"color\": \"%s\"}", snake.getId(), snake.getHexColor()));
-			sb.append(',');
-		}
-		sb.deleteCharAt(sb.length()-1);
-		String msg = String.format("{\"type\": \"join\",\"data\":[%s]}", sb.toString());
-		
-		snakeGame.broadcast(msg);
 	}
 
 	@Override
@@ -69,7 +57,35 @@ public class SnakeHandler extends TextWebSocketHandler {
 					break;
 					
 				case "GameName":
-					String n = node.get("value").asText();
+					String gn1 = node.get("value").asText();
+					
+					if (SnakeGames.containsKey(gn1)) {
+						session.sendMessage(new TextMessage("{\"type\":\"gameNameValid\", \"data\":false}"));
+					}
+					else {
+						SnakeGames.put(gn1, new SnakeGame());
+						session.sendMessage(new TextMessage("{\"type\":\"gameNameValid\", \"data\":true, \"name\":\"" + gn1 + "\"}"));
+					}
+					
+					break;
+					
+				case "JoinGame":
+					
+					String gn2 = node.get("value").asText();
+					
+					session.getAttributes().put("snakeGame", gn2);
+					
+					SnakeGames.get(gn2).addSnake(s);
+
+					StringBuilder sb = new StringBuilder();
+					for (Snake snake : SnakeGames.get(gn2).getSnakes()) {			
+						sb.append(String.format("{\"id\": %d, \"color\": \"%s\"}", snake.getId(), snake.getHexColor()));
+						sb.append(',');
+					}
+					sb.deleteCharAt(sb.length()-1);
+					String msg = String.format("{\"type\": \"join\",\"data\":[%s]}", sb.toString());
+					
+					SnakeGames.get(gn2).broadcast(msg);
 					break;
 					
 				default:
@@ -88,12 +104,13 @@ public class SnakeHandler extends TextWebSocketHandler {
 		System.out.println("Connection closed. Session " + session.getId());
 
 		Snake s = (Snake) session.getAttributes().get(SNAKE_ATT);
-
-		snakeGame.removeSnake(s);
+		String gn = (String) session.getAttributes().get("snakeGame");
+		
+		SnakeGames.get(gn).removeSnake(s);
 
 		String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
 		
-		snakeGame.broadcast(msg);
+		SnakeGames.get(gn).broadcast(msg);
 	}
 
 }
