@@ -13,8 +13,6 @@ Console.log = (function(message) {
 });
 
 let game;
-let name;
-
 
 class Snake {
 
@@ -56,37 +54,13 @@ class Game {
 		}
 		
 		this.context = canvas.getContext('2d');
-		window.addEventListener('keydown', e => {
-			
-			var code = e.keyCode;
-			if (code > 36 && code < 41) {
-				switch (code) {
-				case 37:
-					if (this.direction != 'east')
-						this.setDirection('west');
-					break;
-				case 38:
-					if (this.direction != 'south')
-						this.setDirection('north');
-					break;
-				case 39:
-					if (this.direction != 'west')
-						this.setDirection('east');
-					break;
-				case 40:
-					if (this.direction != 'north')
-						this.setDirection('south');
-					break;
-				}
-			}
-		}, false);
 		
 		this.connect();
 	}
 
 	setDirection(direction) {
 		this.direction = direction;
-		this.socket.send(direction);
+		this.socket.send(JSON.stringify({op : "Dir" , value : direction}));
 		Console.log('Sent: Direction ' + direction);
 	}
 
@@ -154,6 +128,12 @@ class Game {
 			this.startGameLoop();
 			
 			setInterval(() => this.socket.send('ping'), 5000);
+			
+			do {
+				var name = prompt("Please enter a valid name:", "");			
+			} while (name == "" || name == undefined || name == null);
+			
+			this.socket.send(JSON.stringify({op : "Name" , value : name}));
 		}
 
 		this.socket.onclose = () => {
@@ -186,13 +166,70 @@ class Game {
 			case 'kill':
 				Console.log('Info: Head shot!');
 				break;
+			case 'gameNameValid':
+				if(packet.data) {
+					document.getElementById("game-buttons").innerHTML += "<button id=\""+ name +"\">" + name + "</button>";
+					document.getElementById(name).addEventListener("click", joinGame);
+				}
+				else {
+					newGame();
+				}
+				break;
 			}
 		}
 	}
 }
 
 $(document).ready(function() {
-    name = prompt("Please enter your name:", "Hulio");
-    game = new Game();
-    game.initialize()
+	$("#playground").hide();
+	$("#console-container").hide();
+	
+	game = new Game();
+    game.initialize();
+    
+    document.getElementById("matchMaking").addEventListener("click", matchmaking);
+    document.getElementById("newGame").addEventListener("click", newGame);
 });
+
+function matchmaking() {
+}
+
+bool validGameName = false;
+
+function newGame() {
+	do {
+		var name = prompt("Please enter a valid game name:", "");	
+	} while (name == "" || name == undefined || name == null));
+	
+	this.socket.send(JSON.stringify({op : "GameName" , value : name}));
+}
+
+function joinGame() {
+}
+
+function enableKeys() {
+	window.addEventListener('keydown', e => {
+		
+		var code = e.keyCode;
+		if (code > 36 && code < 41) {
+			switch (code) {
+			case 37:
+				if (this.direction != 'east')
+					this.setDirection('west');
+				break;
+			case 38:
+				if (this.direction != 'south')
+					this.setDirection('north');
+				break;
+			case 39:
+				if (this.direction != 'west')
+					this.setDirection('east');
+				break;
+			case 40:
+				if (this.direction != 'north')
+					this.setDirection('south');
+				break;
+			}
+		}
+	}, false);
+}
