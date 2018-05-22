@@ -1,4 +1,4 @@
-	package es.codeurjc.em.snake;
+package es.codeurjc.em.snake;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

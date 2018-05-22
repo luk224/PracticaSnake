@@ -1,4 +1,4 @@
-package es.codeurjc.em.snake;
+ package es.codeurjc.em.snake;
 
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -18,6 +18,7 @@ public class Snake {
 	private int length = DEFAULT_LENGTH;
 
 	private final String hexColor;
+	private String name;
 	private Direction direction;
 
 	private final WebSocketSession session;
@@ -105,6 +106,10 @@ public class Snake {
 
 	public synchronized void setDirection(Direction direction) {
 		this.direction = direction;
+	}
+	
+	public synchronized void setName(String name) {
+		this.name = name;
 	}
 
 	public int getId() {
