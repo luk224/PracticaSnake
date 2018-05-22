@@ -13,6 +13,8 @@ Console.log = (function(message) {
 });
 
 let game;
+let name;
+
 
 class Snake {
 
@@ -33,7 +35,6 @@ class Snake {
 class Game {
 
 	constructor(){
-	
 		this.fps = 30;
 		this.socket = null;
 		this.nextFrame = null;
@@ -190,6 +191,8 @@ class Game {
 	}
 }
 
-game = new Game();
-
-game.initialize()
+$(document).ready(function() {
+    name = prompt("Please enter your name:", "Hulio");
+    game = new Game();
+    game.initialize()
+});
