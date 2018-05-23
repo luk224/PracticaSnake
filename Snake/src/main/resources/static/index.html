@@ -7,16 +7,22 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 </head>
 <body>
-	<div style="float: left">
-		<canvas id="playground" width="640" height="480"></canvas>
+	<div id="room">
+		<div style="float: left">
+			<canvas id="playground" width="640" height="480"></canvas>
+		</div>
+		<div id="console-container">
+			<div id="console"></div>
+		</div>
+		
+		<button id="leaveGame" type="button"> Leave Game </button>
 	</div>
-	<div id="console-container">
-		<div id="console"></div>
-	</div>
+	
 	<div id="game-buttons">
 		<button id="matchMaking" type="button"> Matchmaking </button>
 		<button id="newGame" type="button"> New Game </button>
 	</div>
+	
 	<script src="app.js"></script>
 </body>
 </html>

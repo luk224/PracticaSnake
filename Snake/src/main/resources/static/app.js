@@ -31,6 +31,7 @@ class Snake {
 }
 
 var socket;
+var admin; //String que guarda el nombre de la sala que administra. Si no administra ninguna, vale "" o undefined o null.
 
 class Game {
 	
@@ -144,7 +145,6 @@ class Game {
 		}
 
 		socket.onmessage = (message) => {
-			console.log(message);
 			var packet = JSON.parse(message.data);
 			
 			switch (packet.type) {
@@ -157,9 +157,23 @@ class Game {
 				for (var j = 0; j < packet.data.length; j++) {
 					this.addSnake(packet.data[j].id, packet.data[j].color);
 				}
+				
+				this.joinGameUI();
 				break;
 			case 'leave':
 				this.removeSnake(packet.id);
+				break;
+			case 'kicked':
+				//this.removeSnake(packet.id);
+				for (var id in this.snakes) {			
+					this.snakes[id] = null;
+					delete this.snakes[id];
+				}
+				
+				this.disableKeys();
+				
+				$("#room").hide();
+				$("#game-buttons").show();
 				break;
 			case 'dead':
 				Console.log('Info: Your snake is dead, bad luck!');
@@ -168,41 +182,59 @@ class Game {
 			case 'kill':
 				Console.log('Info: Head shot!');
 				break;
-			case 'gameNameValid':
-				if(packet.data) {
-					var btn = document.createElement("BUTTON");
-					
-				    var t = document.createTextNode(packet.name);
-				    btn.appendChild(t);
-				    btn.setAttribute("id", packet.name);
-				    btn.setAttribute("type", "button");
-				    
-				    btn.addEventListener("click", () => this.joinGame(packet.name));
-				    
-				    document.getElementById("game-buttons").appendChild(btn);
-				}
-				else {
+			case 'gameNameNotValid':
+					admin = "";
+				
 					alert("Error: Game name already exists.");
 					this.newGame();
-				}
+				break;
+				
+			case 'gameFull':
+				alert("Error: Game is full.");
+				break;
+				
+			case 'newRoomSettings':
+				//Establecer ajustes y mandar al servidor, llamando al case de createGame pasandale los datos necesarios.
+				
+				socket.send(JSON.stringify({op : "createGame" , value : admin}));
+				break;
+				
+			case 'newRoomCreator':
+				this.joinGame(packet.name);
+				break;
+				
+			case 'newRoom':
+				var packname = packet.name;
+				var btn = document.createElement("BUTTON");
+				
+			    var t = document.createTextNode(packname);
+			    btn.appendChild(t);
+			    btn.setAttribute("id", packname);
+			    btn.setAttribute("type", "button");
+			    
+			    //btn.setAttribute("onclick", "joinGameHandler(event)");
+			    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
+
+			    document.getElementById("game-buttons").appendChild(btn);
 				break;
 
 			case 'roomsCreated':
-				console.log(packet.rooms);
 				var obj = packet.rooms;
+				
 				for (var i = 0; i < obj.length; i++) {
+					var pen = obj[i];
+					
 					var btn = document.createElement("BUTTON");
 					
-				    var t = document.createTextNode(obj[i]);
+				    var t = document.createTextNode(pen);
 				    btn.appendChild(t);
-				    btn.setAttribute("id", obj[i]);
+				    btn.setAttribute("id", pen);
 				    btn.setAttribute("type", "button");
-				    var pen = obj[i];
 				    
-				    btn.addEventListener("click", () => this.joinGame(pen));
+				    //btn.setAttribute("onclick", "joinGameHandler(event)");
+				    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
 				    
 				    document.getElementById("game-buttons").appendChild(btn);
-				
 				}
 				break;
 			}
@@ -217,58 +249,88 @@ class Game {
 		do {
 			var name = prompt("Please enter a valid game name:", "");	
 			console.log(name);
-		} while (name == "" || name == undefined);
+		} while (name == "");
 		
-		if(name != null)
+		if(name != null && name != undefined) {
 			socket.send(JSON.stringify({op : "GameName" , value : name}));
+			admin = name;
+		}
 	}
-
-	
 
 	enableKeys() {
-			console.log("keysEnabled");
-		window.addEventListener('keydown', e => {
-			console.log("keysEnabled");
-			var code = e.keyCode;
-			if (code > 36 && code < 41) {
-				switch (code) {
-				case 37:
-					if (this.direction != 'east')
-						this.setDirection('west');
-					break;
-				case 38:
-					if (this.direction != 'south')
-						this.setDirection('north');
-					break;
-				case 39:
-					if (this.direction != 'west')
-						this.setDirection('east');
-					break;
-				case 40:
-					if (this.direction != 'north')
-						this.setDirection('south');
-					break;
-				}
-			}
-		}, false);
+		window.addEventListener('keydown', ListenerKeys, false);
 	}
-	joinGame(n) { //cambiar la variablke name
-		socket.send(JSON.stringify({op : "JoinGame" , value : n}));
-		$("#playground").show();
-		$("#console-container").show();
-		$("#game-buttons").hide();
-		this.enableKeys();
+	
+	disableKeys() {
+		window.removeEventListener('keydown', ListenerKeys, false);
+	}
 
+	keys(e) {
+		var code = e.keyCode;
+		if (code > 36 && code < 41) {
+			switch (code) {
+			case 37:
+				if (this.direction != 'east')
+					this.setDirection('west');
+				break;
+			case 38:
+				if (this.direction != 'south')
+					this.setDirection('north');
+				break;
+			case 39:
+				if (this.direction != 'west')
+					this.setDirection('east');
+				break;
+			case 40:
+				if (this.direction != 'north')
+					this.setDirection('south');
+				break;
+			}
+		}
+	}
+	
+	joinGame(joinNameVal) {
+		//Aqui mostrar lo que sea antes de unirte a sala, config, confirmacion de si unir o no, etc.
+
+		socket.send(JSON.stringify({op : "JoinGame" , value : joinNameVal}));
+	}
+	
+	joinGameUI() {
+		$("#room").show();
+		$("#game-buttons").hide();
+		
+		this.enableKeys();
+	}
+	
+	leaveGame() {
+		var isAd = !(admin == "" || admin == undefined || admin == null);
+
+		socket.send(JSON.stringify({op : "LeaveGame" , isAdmin : isAd}));
+		
+		admin = "";
+		
+		this.disableKeys();
+		
+		$("#room").hide();
+		$("#game-buttons").show();
 	}
 }
 
+//function joinGameHandler(e) {
+//    game.joinGame(e.target.getAttribute("id"));
+//}
+
+function ListenerKeys(event) {
+	game.keys(event);
+}
+
 $(document).ready(function() {
-	$("#playground").hide();
-	$("#console-container").hide();
+	$("#room").hide();
 	
 	game = new Game();
     game.initialize();
     
     document.getElementById("matchMaking").addEventListener("click", () => game.matchmaking());
     document.getElementById("newGame").addEventListener("click", () => game.newGame());
+    document.getElementById("leaveGame").addEventListener("click", () => game.leaveGame());
 });
