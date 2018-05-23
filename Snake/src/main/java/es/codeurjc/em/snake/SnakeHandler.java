@@ -10,6 +10,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Set;
 
 public class SnakeHandler extends TextWebSocketHandler {
 
@@ -18,15 +19,25 @@ public class SnakeHandler extends TextWebSocketHandler {
 	private AtomicInteger snakeIds = new AtomicInteger(0);
 
 	private ConcurrentHashMap<String, SnakeGame> SnakeGames = new ConcurrentHashMap<>(); 
-	
-	@Override
-	public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-		int id = snakeIds.getAndIncrement();
 
-		Snake s = new Snake(id, session);
+        @Override
+        public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+            int id = snakeIds.getAndIncrement();
 
-		session.getAttributes().put(SNAKE_ATT, s);
-	}
+            Snake s = new Snake(id, session);
+
+            session.getAttributes().put(SNAKE_ATT, s);
+              if (!SnakeGames.isEmpty()) {
+                Set<String> keys = SnakeGames.keySet();
+                ObjectMapper mapper = new ObjectMapper();
+                String mapeado = mapper.writeValueAsString(keys);
+                System.out.println(""+mapeado+"");
+                //String[] lista = (String[]) keys.toArray();
+                
+                session.sendMessage(new TextMessage("{\"type\":\"roomsCreated\", \"rooms\":" +mapeado + "}"));
+             }
+             
+        }
 
 	@Override
 	protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {

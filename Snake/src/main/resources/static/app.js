@@ -144,7 +144,7 @@ class Game {
 		}
 
 		socket.onmessage = (message) => {
-
+			console.log(message);
 			var packet = JSON.parse(message.data);
 			
 			switch (packet.type) {
@@ -188,8 +188,8 @@ class Game {
 				break;
 
 			case 'roomsCreated':
-				console.log(packet.data);
-				var obj = JSON.parse(packet.data); 
+				console.log(packet.rooms);
+				var obj = packet.rooms;
 				for (var i = 0; i < obj.length; i++) {
 					var btn = document.createElement("BUTTON");
 					
@@ -197,8 +197,9 @@ class Game {
 				    btn.appendChild(t);
 				    btn.setAttribute("id", obj[i]);
 				    btn.setAttribute("type", "button");
+				    var pen = obj[i];
 				    
-				    btn.addEventListener("click", () => this.joinGame(obj[i]));
+				    btn.addEventListener("click", () => this.joinGame(pen));
 				    
 				    document.getElementById("game-buttons").appendChild(btn);
 				
