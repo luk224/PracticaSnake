@@ -177,7 +177,7 @@ class Game {
 				    btn.setAttribute("id", packet.name);
 				    btn.setAttribute("type", "button");
 				    
-				    btn.addEventListener("click", () => this.joinGame());
+				    btn.addEventListener("click", () => this.joinGame(packet.name));
 				    
 				    document.getElementById("game-buttons").appendChild(btn);
 				}
@@ -186,7 +186,26 @@ class Game {
 					this.newGame();
 				}
 				break;
+
+			case 'roomsCreated':
+				console.log(packet.data);
+				var obj = JSON.parse(packet.data); 
+				for (var i = 0; i < obj.length; i++) {
+					var btn = document.createElement("BUTTON");
+					
+				    var t = document.createTextNode(obj[i]);
+				    btn.appendChild(t);
+				    btn.setAttribute("id", obj[i]);
+				    btn.setAttribute("type", "button");
+				    
+				    btn.addEventListener("click", () => this.joinGame(obj[i]));
+				    
+				    document.getElementById("game-buttons").appendChild(btn);
+				
+				}
+				break;
 			}
+
 		}
 	}
 	
@@ -203,17 +222,12 @@ class Game {
 			socket.send(JSON.stringify({op : "GameName" , value : name}));
 	}
 
-	joinGame() { //Encontrar forma de pasar el nombre de la partida a value : name.
-		socket.send(JSON.stringify({op : "JoinName" , value : name}));
-		
-		$("#playground").show();
-		$("#console-container").show();
-		$("#game-buttons").hide();
-	}
+	
 
 	enableKeys() {
+			console.log("keysEnabled");
 		window.addEventListener('keydown', e => {
-			
+			console.log("keysEnabled");
 			var code = e.keyCode;
 			if (code > 36 && code < 41) {
 				switch (code) {
@@ -236,6 +250,14 @@ class Game {
 				}
 			}
 		}, false);
+	}
+	joinGame(n) { //cambiar la variablke name
+		socket.send(JSON.stringify({op : "JoinGame" , value : n}));
+		$("#playground").show();
+		$("#console-container").show();
+		$("#game-buttons").hide();
+		this.enableKeys();
+
 	}
 }
 
