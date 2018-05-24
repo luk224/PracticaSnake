@@ -22,8 +22,8 @@ public class SnakeGame {
 		snakes.put(snake.getId(), snake);
 
 		int count = numSnakes.getAndIncrement();
-
-		if (count ==3) {
+                
+		if (count ==3 && !started.get()) {
 			startTimer();
 		}
 	}
@@ -35,7 +35,7 @@ public class SnakeGame {
 	public void removeSnake(Snake snake) {
 
 		snakes.remove(Integer.valueOf(snake.getId()));
-
+                snake.resetState();
 		int count = numSnakes.decrementAndGet();
 
 		if (count == 0) {

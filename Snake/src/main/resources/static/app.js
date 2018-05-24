@@ -29,9 +29,16 @@ class Snake {
 		}
 	}
 }
-
+var inGame = false;
 var socket;
 var admin; //String que guarda el nombre de la sala que administra. Si no administra ninguna, vale "" o undefined o null.
+
+function prueba (myVar,j){
+	clearInterval(myVar);
+	clearTimeout(j);
+	$("#waitJoin").hide();
+}
+
 
 class Game {
 	
@@ -157,21 +164,18 @@ class Game {
 					for (var j = 0; j < packet.data.length; j++) {
 						this.addSnake(packet.data[j].id, packet.data[j].color);
 					}
-					
 					this.joinGameUI();
 					break;
 				case 'leave':
 					this.removeSnake(packet.id);
-					
-					if(!(admin == "" || admin == undefined || admin == null)){
+					break;
+				case 'kicked':
+					inGame = false;
+					if(!(admin == "" || admin == undefined || admin == null	) ){
 						alert("Eres el admin y te has ido");
 						document.getElementById("startGame").remove();
 						admin = "";
 					}
-
-					break;
-				case 'kicked':
-
 					//this.removeSnake(packet.id);
 					for (var id in this.snakes) {			
 						this.snakes[id] = null;
@@ -198,12 +202,39 @@ class Game {
 					break;
 					
 				case 'gameFull':
-					alert("Error: Game is full.");
+					
+
+					$("#cancelButton").show();
+					document.getElementById("pWaitJoin").innerHTML = "Game is full, trying to connect...";
+					$("#waitJoin").show();
+					var myVar = setInterval( ( () => {
+
+
+						if(!inGame){
+							socket.send(JSON.stringify({op : "tryToJoin" , value : packet.idRoom }));
+						}
+
+					}), 500);
+
+					
+
+				//">Stop it</button>	
+					var j = setTimeout(function(){clearInterval(myVar);
+						if(!inGame){
+							
+							document.getElementById("pWaitJoin").innerHTML = "Impossible to join.";
+						}
+						$("#cancelButton").hide();
+						document.getElementById("cancelButton").removeEventListener("click", function(){ prueba(myVar,j);});
+					}, 5000);
+
+					document.getElementById("cancelButton").addEventListener("click", function(){ prueba(myVar,j);});
 					break;
-				case 'alreadyStarted':
+					/*
+				case 'alreadyStarted': 
 					alert("Error: Game has already started.");
 					break;
-					
+					*/
 				case 'newRoomSettings':
 					//Establecer ajustes y mandar al servidor, llamando al case de createGame pasandale los datos necesarios.
 					
@@ -219,7 +250,10 @@ class Game {
 				    btn.appendChild(t);
 				    btn.setAttribute("id", "startGame");
 				    btn.setAttribute("type", "button");
-				    btn.addEventListener("click", () =>socket.send(JSON.stringify({op : "startGame"})));
+
+				    btn.addEventListener("click", () =>{
+				    	socket.send(JSON.stringify({op : "startGame"}));  
+				    });
 					document.getElementById("room").appendChild(btn);
 
 					break;
@@ -235,7 +269,6 @@ class Game {
 				    
 				    //btn.setAttribute("onclick", "joinGameHandler(event)");
 				    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
-
 				    document.getElementById("game-buttons").appendChild(btn);
 					break;
 
@@ -259,18 +292,36 @@ class Game {
 					}
 					break;
 				case 'endGame':
+				inGame = false;
+						$("#room").hide();
+					$("#game-buttons").show();
 					alert("Game over");
+					
 					break;
 				case 'notEnoughPlayers':
 					alert("You need to be at least 2 players in the room to start a game.") 
 
 				break;
-
+				case 'enoughPlayers':
+					$("#startGame").hide();
+				break;
+				case 'deleteRoom':
+					var idRoom = packet.id;
+					document.getElementById(idRoom).remove();
+				break;
+				case 'hideStartButton':
+					if(!(admin == "" || admin == undefined || admin == null	) ){
+						$("#startGame").hide();
+					}
+				break;
 			}
 
 		}
 	}
-	
+	borrarSala(id){
+
+	}
+
 	matchmaking() {
 	}
 
@@ -325,15 +376,16 @@ class Game {
 	}
 	
 	joinGameUI() {
+		inGame = true;
 		$("#room").show();
 		$("#game-buttons").hide();
-		
+		$("#waitJoin").hide();
 		this.enableKeys();
 	}
 	
 	leaveGame() {
 		var isAd = !(admin == "" || admin == undefined || admin == null);
-
+		inGame = false;
 		socket.send(JSON.stringify({op : "LeaveGame" , isAdmin : isAd}));
 		
 		
@@ -357,7 +409,6 @@ $(document).ready(function() {
 	
 	game = new Game();
     game.initialize();
-    
     document.getElementById("matchMaking").addEventListener("click", () => game.matchmaking());
     document.getElementById("newGame").addEventListener("click", () => game.newGame());
     document.getElementById("leaveGame").addEventListener("click", () => game.leaveGame());

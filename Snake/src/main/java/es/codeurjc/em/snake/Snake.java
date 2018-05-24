@@ -30,7 +30,7 @@ public class Snake {
 		resetState();
 	}
 
-	private void resetState() {
+	public synchronized void resetState() {
 		this.direction = Direction.NONE;
 		this.head = SnakeUtils.getRandomLocation();
 		this.tail.clear();
