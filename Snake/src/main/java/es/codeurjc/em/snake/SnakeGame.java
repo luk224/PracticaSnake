@@ -5,12 +5,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class SnakeGame {
 
 	private final static long TICK_DELAY = 100;
-
+        private  AtomicBoolean started = new AtomicBoolean(false);
 	private ConcurrentHashMap<Integer, Snake> snakes = new ConcurrentHashMap<>();
 	private AtomicInteger numSnakes = new AtomicInteger();
 
@@ -22,7 +23,7 @@ public class SnakeGame {
 
 		int count = numSnakes.getAndIncrement();
 
-		if (count == 0) {
+		if (count ==3) {
 			startTimer();
 		}
 	}
@@ -96,8 +97,15 @@ public class SnakeGame {
 			}
 		}
 	}
+        public boolean empezada(){
+            return started.get();
+        }
+        public boolean empezada(boolean b){
+            return started.getAndSet(b);
+        }
 
 	public void startTimer() {
+                started.set(true);
 		scheduler = Executors.newScheduledThreadPool(1);
 		scheduler.scheduleAtFixedRate(() -> tick(), TICK_DELAY, TICK_DELAY, TimeUnit.MILLISECONDS);
 	}
@@ -106,5 +114,6 @@ public class SnakeGame {
 		if (scheduler != null) {
 			scheduler.shutdown();
 		}
+                started.set(false);
 	}
 }

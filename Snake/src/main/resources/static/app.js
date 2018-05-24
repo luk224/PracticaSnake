@@ -146,97 +146,126 @@ class Game {
 
 		socket.onmessage = (message) => {
 			var packet = JSON.parse(message.data);
-			
+			console.log(packet);
 			switch (packet.type) {
-			case 'update':
-				for (var i = 0; i < packet.data.length; i++) {
-					this.updateSnake(packet.data[i].id, packet.data[i].body);
-				}
-				break;
-			case 'join':
-				for (var j = 0; j < packet.data.length; j++) {
-					this.addSnake(packet.data[j].id, packet.data[j].color);
-				}
-				
-				this.joinGameUI();
-				break;
-			case 'leave':
-				this.removeSnake(packet.id);
-				break;
-			case 'kicked':
-				//this.removeSnake(packet.id);
-				for (var id in this.snakes) {			
-					this.snakes[id] = null;
-					delete this.snakes[id];
-				}
-				
-				this.disableKeys();
-				
-				$("#room").hide();
-				$("#game-buttons").show();
-				break;
-			case 'dead':
-				Console.log('Info: Your snake is dead, bad luck!');
-				this.direction = 'none';
-				break;
-			case 'kill':
-				Console.log('Info: Head shot!');
-				break;
-			case 'gameNameNotValid':
-					admin = "";
-				
-					alert("Error: Game name already exists.");
-					this.newGame();
-				break;
-				
-			case 'gameFull':
-				alert("Error: Game is full.");
-				break;
-				
-			case 'newRoomSettings':
-				//Establecer ajustes y mandar al servidor, llamando al case de createGame pasandale los datos necesarios.
-				
-				socket.send(JSON.stringify({op : "createGame" , value : admin}));
-				break;
-				
-			case 'newRoomCreator':
-				this.joinGame(packet.name);
-				break;
-				
-			case 'newRoom':
-				var packname = packet.name;
-				var btn = document.createElement("BUTTON");
-				
-			    var t = document.createTextNode(packname);
-			    btn.appendChild(t);
-			    btn.setAttribute("id", packname);
-			    btn.setAttribute("type", "button");
-			    
-			    //btn.setAttribute("onclick", "joinGameHandler(event)");
-			    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
-
-			    document.getElementById("game-buttons").appendChild(btn);
-				break;
-
-			case 'roomsCreated':
-				var obj = packet.rooms;
-				
-				for (var i = 0; i < obj.length; i++) {
-					var pen = obj[i];
+				case 'update':
+					for (var i = 0; i < packet.data.length; i++) {
+						this.updateSnake(packet.data[i].id, packet.data[i].body);
+					}
+					break;
+				case 'join':
+					for (var j = 0; j < packet.data.length; j++) {
+						this.addSnake(packet.data[j].id, packet.data[j].color);
+					}
 					
+					this.joinGameUI();
+					break;
+				case 'leave':
+					this.removeSnake(packet.id);
+					
+					if(!(admin == "" || admin == undefined || admin == null)){
+						alert("Eres el admin y te has ido");
+						document.getElementById("startGame").remove();
+						admin = "";
+					}
+
+					break;
+				case 'kicked':
+
+					//this.removeSnake(packet.id);
+					for (var id in this.snakes) {			
+						this.snakes[id] = null;
+						delete this.snakes[id];
+					}
+					
+					this.disableKeys();
+					
+					$("#room").hide();
+					$("#game-buttons").show();
+					break;
+				case 'dead':
+					Console.log('Info: Your snake is dead, bad luck!');
+					this.direction = 'none';
+					break;
+				case 'kill':
+					Console.log('Info: Head shot!');
+					break;
+				case 'gameNameNotValid':
+						admin = "";
+					
+						alert("Error: Game name already exists.");
+						this.newGame();
+					break;
+					
+				case 'gameFull':
+					alert("Error: Game is full.");
+					break;
+				case 'alreadyStarted':
+					alert("Error: Game has already started.");
+					break;
+					
+				case 'newRoomSettings':
+					//Establecer ajustes y mandar al servidor, llamando al case de createGame pasandale los datos necesarios.
+					
+					socket.send(JSON.stringify({op : "createGame" , value : admin}));
+					break;
+					
+				case 'newRoomCreator':
+					this.joinGame(packet.name);
+
 					var btn = document.createElement("BUTTON");
 					
-				    var t = document.createTextNode(pen);
+				    var t = document.createTextNode("Start Game");
 				    btn.appendChild(t);
-				    btn.setAttribute("id", pen);
+				    btn.setAttribute("id", "startGame");
+				    btn.setAttribute("type", "button");
+				    btn.addEventListener("click", () =>socket.send(JSON.stringify({op : "startGame"})));
+					document.getElementById("room").appendChild(btn);
+
+					break;
+					
+				case 'newRoom':
+					var packname = packet.name;
+					var btn = document.createElement("BUTTON");
+					
+				    var t = document.createTextNode(packname);
+				    btn.appendChild(t);
+				    btn.setAttribute("id", packname);
 				    btn.setAttribute("type", "button");
 				    
 				    //btn.setAttribute("onclick", "joinGameHandler(event)");
 				    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
-				    
+
 				    document.getElementById("game-buttons").appendChild(btn);
-				}
+					break;
+
+				case 'roomsCreated':
+					var obj = packet.rooms;
+					
+					for (var i = 0; i < obj.length; i++) {
+						var pen = obj[i];
+						
+						var btn = document.createElement("BUTTON");
+						
+					    var t = document.createTextNode(pen);
+					    btn.appendChild(t);
+					    btn.setAttribute("id", pen);
+					    btn.setAttribute("type", "button");
+					    
+					    //btn.setAttribute("onclick", "joinGameHandler(event)");
+					    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
+					    
+					    document.getElementById("game-buttons").appendChild(btn);
+					}
+					break;
+				case 'endGame':
+					alert("Game over");
+					break;
+				case 'notEnoughPlayers':
+					alert("You need to be at least 2 players in the room to start a game.") 
+
 				break;
+
 			}
 
 		}
@@ -307,7 +336,6 @@ class Game {
 
 		socket.send(JSON.stringify({op : "LeaveGame" , isAdmin : isAd}));
 		
-		admin = "";
 		
 		this.disableKeys();
 		

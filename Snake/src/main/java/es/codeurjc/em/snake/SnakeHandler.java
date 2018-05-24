@@ -101,58 +101,85 @@ public class SnakeHandler extends TextWebSocketHandler {
 					break;
 					
 				case "JoinGame":
-					
+                                {
 					String gn3 = node.get("value").asText();
-					
-					synchronized(SnakeGames) {
-						if (SnakeGames.get(gn3).getSnakes().size() < 4) {	
+					SnakeGame snGm = SnakeGames.get(gn3);
+					synchronized(snGm) {
+                                            if(!snGm.empezada()){    
+						if (snGm.getSnakes().size() < 4) {	
 							session.getAttributes().put("snakeGame", gn3);
 							
-							SnakeGames.get(gn3).addSnake(s);
+							snGm.addSnake(s);
 		
 							StringBuilder sb = new StringBuilder();
-							for (Snake snake : SnakeGames.get(gn3).getSnakes()) {			
+							for (Snake snake :snGm.getSnakes()) {			
 								sb.append(String.format("{\"id\": %d, \"color\": \"%s\"}", snake.getId(), snake.getHexColor()));
 								sb.append(',');
 							}
 							sb.deleteCharAt(sb.length()-1);
 							String msg = String.format("{\"type\": \"join\",\"data\":[%s]}", sb.toString());
 							
-							SnakeGames.get(gn3).broadcast(msg);
+							snGm.broadcast(msg);
 						}
 						else {
 							session.sendMessage(new TextMessage("{\"type\":\"gameFull\"}"));
 						}
+                                            }else{
+                                                session.sendMessage(new TextMessage("{\"type\":\"alreadyStarted\"}"));
+                                            }
 					}
 					break;
-					
+                                }	
 				case "LeaveGame":
-					
-					boolean adminLeave = node.get("isAdmin").asBoolean();
-					
-					synchronized(SnakeGames) {
-						String gn = (String) session.getAttributes().get("snakeGame");
-						
-						SnakeGames.get(gn).removeSnake(s);
-						
-						String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
-						
-						SnakeGames.get(gn).broadcast(msg);
-						
-						if (adminLeave) {
-							/*for (Snake snake : SnakeGames.get(gn).getSnakes()) {			
-								msg = String.format("{\"type\": \"kicked\", \"id\": %d}", snake.getId());
+                                {
+                                    
+                               
+                                    boolean adminLeave = node.get("isAdmin").asBoolean();
+                                    String gn = (String) session.getAttributes().get("snakeGame");
+                                    SnakeGame snGm = SnakeGames.get(gn);
+                                    synchronized(snGm) {
+
+
+                                            
+
+                                            String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
+
+                                            snGm.broadcast(msg);
+                                            snGm.removeSnake(s);
+                                            if (adminLeave) {
+                                                /*for (Snake snake : SnakeGames.get(gn).getSnakes()) {			
+                                                 msg = String.format("{\"type\": \"kicked\", \"id\": %d}", snake.getId());
 								
-								SnakeGames.get(gn).broadcast(msg);
+                                                 SnakeGames.get(gn).broadcast(msg);
 								
-								SnakeGames.get(gn).removeSnake(snake);
-							}*/
-							
-							SnakeGames.get(gn).broadcast(String.format("{\"type\": \"kicked\"}"));
-						}
+                                                 SnakeGames.get(gn).removeSnake(snake);
+                                                 }*/
+
+                                                snGm.broadcast(String.format("{\"type\": \"kicked\"}"));
+                                                for (Snake snake : snGm.getSnakes()) {
+                                                    snGm.removeSnake(snake);
+                                                    
+                                                }
+                                                
+                                            }else if (snGm.empezada() && snGm.getSnakes().size() == 1) {
+                                                snGm.stopTimer();
+                                                snGm.broadcast(String.format("{\"type\": \"endGame\"}"));
+                                            }
 					}
+                                    }
 					break;
+                                            
+				//startGame
+                                case "startGame":{
+                                    SnakeGame snGm = SnakeGames.get((String) session.getAttributes().get("snakeGame"));
+                                    if( snGm.getSnakes().size()>1)
+                                        snGm.startTimer();
+                                    else
+                                        session.sendMessage(new TextMessage(String.format("{\"type\": \"notEnoughPlayers\"}")));
+                                }
 					
+                                    break; 
+                                    
 				default:
 					break;
 			}
