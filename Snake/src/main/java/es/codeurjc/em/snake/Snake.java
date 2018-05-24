@@ -53,8 +53,10 @@ public class Snake {
 
 	public synchronized void update(Collection<Snake> snakes) throws Exception {
 
+                
+            
 		Location nextLocation = this.head.getAdjacentLocation(this.direction);
-
+                //Esto hace que aprezca por los bordes.
 		if (nextLocation.x >= Location.PLAYFIELD_WIDTH) {
 			nextLocation.x = 0;
 		}
@@ -67,7 +69,7 @@ public class Snake {
 		if (nextLocation.y < 0) {
 			nextLocation.y = Location.PLAYFIELD_HEIGHT;
 		}
-
+                //fin de bordes
 		if (this.direction != Direction.NONE) {
 			this.tail.addFirst(this.head);
 			if (this.tail.size() > this.length) {

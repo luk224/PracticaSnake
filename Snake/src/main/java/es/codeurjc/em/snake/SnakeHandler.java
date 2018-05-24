@@ -93,8 +93,9 @@ public class SnakeHandler extends TextWebSocketHandler {
 
                 case "createGame": {
                     String gn2 = node.get("value").asText();
-
-                    SnakeGames.put(gn2, new SnakeGame());
+                   
+                    SnakeGames.put(gn2, new SnakeGame( node.get("dif").asInt()));
+                    
 
                     for (WebSocketSession participant : sessions.values()) {
                         participant.sendMessage(new TextMessage("{\"type\":\"newRoom\", \"name\":\"" + gn2 + "\"}"));

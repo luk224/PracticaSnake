@@ -237,8 +237,13 @@ class Game {
 					*/
 				case 'newRoomSettings':
 					//Establecer ajustes y mandar al servidor, llamando al case de createGame pasandale los datos necesarios.
+					$("#settings").show();
+					$("#room").hide();
+					$("#game-buttons").hide();
+					$("#waitJoin").hide();
+
+					//getGameSettings();
 					
-					socket.send(JSON.stringify({op : "createGame" , value : admin}));
 					break;
 					
 				case 'newRoomCreator':
@@ -328,7 +333,6 @@ class Game {
 
 	matchmaking() {
 		socket.send(JSON.stringify({op : "matchMaking"}));
-		console.log("Holi");
 	}
 
 	newGame() {
@@ -387,6 +391,7 @@ class Game {
 		$("#game-buttons").hide();
 		$("#waitJoin").hide();
 		this.enableKeys();
+		$("#settings").hide();
 	}
 	
 	leaveGame() {
@@ -401,7 +406,24 @@ class Game {
 		$("#game-buttons").show();
 	}
 }
+function getGameSettings() {
+	
+    var val;
+    // get list of radio buttons with specified name
+    var radios = document.getElementById('settings').elements["radio"];
+    
+    // loop through list of radio buttons
+    for (var i=0, len=radios.length; i<len; i++) {
+        if ( radios[i].checked ) { // radio checked?
+            val = radios[i].value; // if so, hold its value in val
+            break; // and break out of for loop
+        }
+    }
+    alert("Dificultad seleccionada "+ val)
+    // return value of checked radio or undefined if none checked
+	socket.send(JSON.stringify({op : "createGame" , value : admin, dif : val}));
 
+}
 //function joinGameHandler(e) {
 //    game.joinGame(e.target.getAttribute("id"));
 //}
@@ -412,9 +434,11 @@ function ListenerKeys(event) {
 
 $(document).ready(function() {
 	$("#room").hide();
+	$("#settings").hide();
 	
 	game = new Game();
     game.initialize();
+    document.getElementById("getValue").addEventListener("click", () =>getGameSettings());
     document.getElementById("matchMaking").addEventListener("click", () => game.matchmaking());
     document.getElementById("newGame").addEventListener("click", () => game.newGame());
     document.getElementById("leaveGame").addEventListener("click", () => game.leaveGame());

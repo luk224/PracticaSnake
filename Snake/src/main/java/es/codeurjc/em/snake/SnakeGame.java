@@ -11,12 +11,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SnakeGame {
 
 	private final static long TICK_DELAY = 100;
+        public int difficulty = 1;
         private  AtomicBoolean started = new AtomicBoolean(false);
 	private ConcurrentHashMap<Integer, Snake> snakes = new ConcurrentHashMap<>();
 	private AtomicInteger numSnakes = new AtomicInteger();
 
 	private ScheduledExecutorService scheduler;
-
+        
+        public SnakeGame(int dif){
+            difficulty = dif;
+        }
 	public void addSnake(Snake snake) {
 
 		snakes.put(snake.getId(), snake);
@@ -107,7 +111,7 @@ public class SnakeGame {
 	public void startTimer() {
                 started.set(true);
 		scheduler = Executors.newScheduledThreadPool(1);
-		scheduler.scheduleAtFixedRate(() -> tick(), TICK_DELAY, TICK_DELAY, TimeUnit.MILLISECONDS);
+		scheduler.scheduleAtFixedRate(() -> tick(), TICK_DELAY/difficulty, TICK_DELAY/difficulty, TimeUnit.MILLISECONDS);
 	}
 
 	public void stopTimer() {
