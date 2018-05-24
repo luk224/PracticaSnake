@@ -301,28 +301,34 @@ class Game {
 				case 'notEnoughPlayers':
 					alert("You need to be at least 2 players in the room to start a game.") 
 
-				break;
+					break;
 				case 'enoughPlayers':
 					$("#startGame").hide();
-				break;
+					break;
 				case 'deleteRoom':
 					var idRoom = packet.id;
 					document.getElementById(idRoom).remove();
-				break;
+					break;
 				case 'hideStartButton':
 					if(!(admin == "" || admin == undefined || admin == null	) ){
 						$("#startGame").hide();
 					}
-				break;
+				case 'matchMaking':
+					var room = packet.room;
+					alert("You have joined room " + room + ".");
+					this.joinGame(room);
+					break;
+				case 'matchMakingError':
+					alert("There are no available rooms.") 
+					break;
 			}
 
 		}
 	}
-	borrarSala(id){
-
-	}
 
 	matchmaking() {
+		socket.send(JSON.stringify({op : "matchMaking"}));
+		console.log("Holi");
 	}
 
 	newGame() {
