@@ -221,16 +221,29 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
 
                 break;
-                case "matchMaking":/*
-                     for(SnakeGames.entrySet() : SnakeGames.values()){
-                     if(sn.getSnakes().size() <4){
-                     session.sendMessage(new TextMessage(String.format("{\"type\":\"matchMaking\", \"room\":" + sn + "}")));
-                     break;
-                     }
-                     }
-                     */
+                
+                case "matchMaking":
+                	synchronized(SnakeGames) {
+                		int aux = 0;
+                    	String auxK = "";
+                         for(String k : SnakeGames.keySet()){
+                        	 if((SnakeGames.get(k).getSnakes().size() < 4) && (SnakeGames.get(k).getSnakes().size() > aux)) {
+                        		 aux = SnakeGames.get(k).getSnakes().size();
+                        		 auxK = k;
+                        		 if (aux == 3) {
+                        			 break;
+                        		 }
+                        	 }
+                         }
+                         
+                         if(auxK != "") {
+                  		 	session.sendMessage(new TextMessage(String.format("{\"type\":\"matchMaking\", \"room\":\"" + auxK + "\"}")));
+                         }else {
+                     		session.sendMessage(new TextMessage(String.format("{\"type\":\"matchMakingError\"}")));
+                         }
+                	}
 
-                    break;
+         		 	break;
                 default:
                     break;
             }
