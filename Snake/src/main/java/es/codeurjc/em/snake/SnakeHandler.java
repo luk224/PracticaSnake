@@ -124,7 +124,7 @@ public class SnakeHandler extends TextWebSocketHandler {
                             String msg = String.format("{\"type\": \"join\",\"data\":[%s]}", sb.toString());
 
                             snGm.broadcast(msg);
-                            if (snGm.getSnakes().size() == 4) {
+                            if (snGm.getSnakes().size() == 4 && !snGm.empezada()) {
                                 int[] comida = snGm.newFood();
                                 snGm.broadcast("{\"type\":\"updateFood\", \"id\":" + 0 + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
                              
@@ -231,7 +231,7 @@ public class SnakeHandler extends TextWebSocketHandler {
 
                 break;
 
-                case "matchMaking":
+                case "matchMaking":{
                     synchronized (SnakeGames) {
                         int aux = 0;
                         String auxK = "";
@@ -253,8 +253,31 @@ public class SnakeHandler extends TextWebSocketHandler {
                             session.sendMessage(new TextMessage(String.format("{\"type\":\"matchMakingError\"}")));
                         }
                     }
-
+                }
                     break;
+                case "requestRoomData":{
+                    SnakeGame g = SnakeGames.get(node.get("value").asText());
+                    
+                    StringBuilder sb = new StringBuilder();
+                        for (Snake sn : g.getSnakes()) {
+                            sb.append(sn.getName());
+                            sb.append(", ");
+                        }
+                        sb.deleteCharAt(sb.length() - 1);
+                        sb.deleteCharAt(sb.length() - 1);
+                        
+                        String dif;
+                        if(g.difficulty == 1){
+                            dif = "Easy";
+                        }else if(g.difficulty == 2){
+                            dif = "Normal";
+                        }else{
+                            dif = "Hard";
+                        }
+                        
+                    session.sendMessage(new TextMessage(String.format("{\"type\":\"joinConfirmed\", \"number\":" + g.getSnakes().size() + ", \"room\":\"" + node.get("value").asText() + "\", \"difficulty\":\"" + dif + "\",\"players\":\""+ sb +"\"}")));
+                }                    
+                break;
                 default:
                     break;
             }

@@ -282,8 +282,8 @@ class Game {
 					break;
 					
 				case 'newRoomCreator':
-					this.joinGame(packet.name);
-
+					//this.joinGame(packet.name);
+					socket.send(JSON.stringify({op : "JoinGame" , value : packet.name}));
 					var btn = document.createElement("BUTTON");
 					
 				    var t = document.createTextNode("Start Game");
@@ -303,6 +303,7 @@ class Game {
 					var btn = document.createElement("BUTTON");
 					
 				    var t = document.createTextNode(packname);
+				    //var t = document.createTextNode('<span id="s_' + packet.name + '">Start Game</span>');
 				    btn.appendChild(t);
 				    btn.setAttribute("id", packname);
 				    btn.setAttribute("type", "button");
@@ -358,11 +359,17 @@ class Game {
 					var room = packet.room;
 					alert("You have joined room " + room + ".");
 					this.joinGame(room);
-					console.log("bbbbbb");
 					break;
 				case 'matchMakingError':
 					alert("There are no available rooms.") 
 					break;
+				case 'joinConfirmed':
+				console.log("case joinConfirmed");
+					 if(confirm("Do you want to join this room?\n\r • Number of players: " + packet.number + "\n\r • Player names: " 
+					 	+ packet.players + "\n\r • Difficulty: " + packet.difficulty)){
+					 	socket.send(JSON.stringify({op : "JoinGame" , value : packet.room}));
+					 }
+		 		break;
 			}
 
 		}
@@ -370,7 +377,6 @@ class Game {
 
 	matchmaking() {
 		socket.send(JSON.stringify({op : "matchMaking"}));
-		console.log("aaaaaaaaaaaa");
 	}
 
 	newGame() {
@@ -418,9 +424,8 @@ class Game {
 	}
 	
 	joinGame(joinNameVal) {
-		//Aqui mostrar lo que sea antes de unirte a sala, config, confirmacion de si unir o no, etc.
-
-		socket.send(JSON.stringify({op : "JoinGame" , value : joinNameVal}));
+		socket.send(JSON.stringify({op : "requestRoomData" , value : joinNameVal}));
+		console.log("function joinGame");
 	}
 	
 	joinGameUI() {
@@ -469,6 +474,7 @@ function getGameSettings() {
 function ListenerKeys(event) {
 	game.keys(event);
 }
+
 
 $(document).ready(function() {
 	$("#room").hide();

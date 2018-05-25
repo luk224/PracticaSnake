@@ -140,6 +140,10 @@ public class Snake {
 	public int getId() {
 		return this.id;
 	}
+        
+        public String getName() {
+		return this.name;
+	}
 
 	public String getHexColor() {
 		return this.hexColor;
