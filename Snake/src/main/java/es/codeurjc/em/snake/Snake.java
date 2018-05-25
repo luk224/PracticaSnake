@@ -87,11 +87,11 @@ public class Snake {
 			this.head = nextLocation;
 		}
 
-		handleCollisions(snakes);
 	}
 
-	private void handleCollisions(Collection<Snake> snakes) throws Exception {
+	public boolean handleCollisions(Collection<Snake> snakes) throws Exception {
 
+            boolean b = false;
 		for (Snake snake : snakes) {
 
 			boolean headCollision = this.id != snake.id && snake.getHead().equals(this.head);
@@ -101,11 +101,12 @@ public class Snake {
 			if (headCollision || tailCollision) {
 				kill();
 				if (this.id != snake.id) {
-					snake.reward();
+                                    snake.reward();
 				}
+                                b = true;
 			}
                 }
-                
+                return b;
                 
 	}
         
@@ -148,4 +149,15 @@ public class Snake {
 	public String getHexColor() {
 		return this.hexColor;
 	}
+        
+        public int getLength(){
+            return this.length;
+        }
+        
+        public int getScore(){
+            return score;
+        }
+        public void reestartScore(){
+            score =0;
+        }
 }

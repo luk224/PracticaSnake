@@ -20,17 +20,21 @@ public class SnakeGame {
         
         private Random rn;
         
+        private final static int MAX_FOODS = 5; //10
+        private final static int MAX_LENGTH = 10;
 	private final static long TICK_DELAY = 100;
-        public int difficulty = 1;
+        public int difficulty = 1; //1: fácil; 2: medio; 4: difícil
         private  AtomicBoolean started = new AtomicBoolean(false);
 	private ConcurrentHashMap<Integer, Snake> snakes = new ConcurrentHashMap<>();
 	private AtomicInteger numSnakes = new AtomicInteger();
         private AtomicInteger numFoods = new AtomicInteger();
 	private ScheduledExecutorService scheduler;
+        public int gameMode; //1: máx comidas; 2: máx longitud 
         
         
-        public SnakeGame(int dif, String ad){
+        public SnakeGame(int dif, String ad, int gm){
             difficulty = dif;
+            gameMode = gm;
             admin = ad;
             rn = new Random();
         }
@@ -50,12 +54,11 @@ public class SnakeGame {
 	public void addSnake(Snake snake) {
 
 		snakes.put(snake.getId(), snake);
-
-		int count = numSnakes.getAndIncrement();
-                
-		if (count ==3 && !started.get()) {
-			startTimer();
-		}
+                snake.reestartScore();
+		numSnakes.getAndIncrement();
+                updateLegend();
+               
+               
 	}
 
 	public Collection<Snake> getSnakes() {
@@ -67,32 +70,68 @@ public class SnakeGame {
 		snakes.remove(Integer.valueOf(snake.getId()));
                 snake.resetState();
 		int count = numSnakes.decrementAndGet();
-
+                
 		if (count == 0) {
 			stopTimer();
 		}
 	}
-
+    
+    public void  updateLegend(){
+        try{
+            StringBuilder sb = new StringBuilder();
+            StringBuilder colors = new StringBuilder();
+            StringBuilder scores = new StringBuilder();
+            for (Snake snake : getSnakes()) {
+                sb.append('"');
+                sb.append(snake.getName());
+                sb.append('"');
+                sb.append(',');
+                
+                colors.append('"');
+                colors.append(snake.getHexColor());
+                colors.append('"');
+                colors.append(',');
+                
+                scores.append('"');
+                scores.append(snake.getScore());
+                scores.append('"');
+                scores.append(',');
+            }
+            sb.deleteCharAt(sb.length() - 1);
+            colors.deleteCharAt(colors.length() - 1);
+            scores.deleteCharAt(scores.length() - 1);
+            String msg = String.format("{\"type\": \"updateLegend\", \"names\" :[ " + sb.toString() + " ], \"colors\" :[" + colors.toString() + "], \"scores\" : [" + scores.toString() + "]}");
+            broadcast(msg);
+        }catch (Throwable ex) {
+            System.err.println("Exception processing legend");
+            ex.printStackTrace(System.err);
+        }
+        
+    }
+        
     private synchronized void tick() {
          
-            
             try {
                 for (Snake snake : getSnakes()) {
                     snake.update(getSnakes());
+                    boolean b = snake.handleCollisions(getSnakes());
+                    if(b)
+                        updateLegend();
                     synchronized(comidas){
-                    int c = snake.handleCollisionsFoods(comidas);
-                    if (c >= 0) {
-                        comidas.remove(c);
-                        broadcast("{\"type\":\"updateFood\", \"id\":" + c + ", \"tru\" : false}");
+                        int c = snake.handleCollisionsFoods(comidas);
+                        if (c >= 0) {
+                            updateLegend();
+                            comidas.remove(c);
+                            broadcast("{\"type\":\"updateFood\", \"id\":" + c + ", \"tru\" : false}");
+                            
+                            synchronized (numFoods) {
 
-                        synchronized (numFoods) {
-
-                            int count = numFoods.get();
-                            int[] comida = newFood();
-                            broadcast("{\"type\":\"updateFood\", \"id\":" + count + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
+                                int count = numFoods.get();
+                                int[] comida = newFood();
+                                broadcast("{\"type\":\"updateFood\", \"id\":" + count + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
+                            }
+                            //broadcast("{\"type\":\"updateFood\", \"id\":" +0 + ", \"tru\" : true, \"pos\" : [50,70]}");
                         }
-                        //broadcast("{\"type\":\"updateFood\", \"id\":" +0 + ", \"tru\" : true, \"pos\" : [50,70]}");
-                    }
                     }
                 }
                 StringBuilder sb = new StringBuilder();
@@ -104,6 +143,12 @@ public class SnakeGame {
                 String msg = String.format("{\"type\": \"update\", \"data\" : [%s]}", sb.toString());
 
                 broadcast(msg);
+                
+                if (checkGameFinished()){
+                    
+                    broadcast(String.format("{\"type\": \"endGame\" }"));
+                    stopTimer();
+                }
 
             } catch (Throwable ex) {
                 System.err.println("Exception processing tick()");
@@ -111,12 +156,33 @@ public class SnakeGame {
             }
         
     }
+    
+    private boolean checkGameFinished(){
+        boolean resultado = false;
+        
+        switch(gameMode){
+            case 1: //max comidas
+                if (numFoods.get() > MAX_FOODS * difficulty){
+                    resultado = true;
+                }
+                break;
+            case 2: // max tamaño
+                for(Snake s : snakes.values()){
+                    if (s.getLength() > MAX_LENGTH * difficulty){
+                        resultado = true;
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+        return resultado;
+    }
+    
     public void getFoods(WebSocketSession session) throws Exception{
       synchronized(comidas){
-        
-    
         for(int comida : comidas.keySet()){
-                     session.sendMessage(new TextMessage("{\"type\":\"updateFood\", \"id\":" + comida + ", \"tru\" : true, \"pos\" : [" + comidas.get(comida)[0] + "," + comidas.get(comida)[1] + "]}"));
+                session.sendMessage(new TextMessage("{\"type\":\"updateFood\", \"id\":" + comida + ", \"tru\" : true, \"pos\" : [" + comidas.get(comida)[0] + "," + comidas.get(comida)[1] + "]}"));
                     
             }
       }

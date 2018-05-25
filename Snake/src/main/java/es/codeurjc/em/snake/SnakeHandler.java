@@ -94,7 +94,7 @@ public class SnakeHandler extends TextWebSocketHandler {
                 case "createGame": {
                     String gn2 = node.get("value").asText();
 
-                    SnakeGames.put(gn2, new SnakeGame(node.get("dif").asInt(), session.getId()));
+                    SnakeGames.put(gn2, new SnakeGame(node.get("dif").asInt(), session.getId(), node.get("gameMode").asInt()));
 
                     for (WebSocketSession participant : sessions.values()) {
                         participant.sendMessage(new TextMessage("{\"type\":\"newRoom\", \"name\":\"" + gn2 + "\"}"));
@@ -127,9 +127,10 @@ public class SnakeHandler extends TextWebSocketHandler {
                             if (snGm.getSnakes().size() == 4 && !snGm.empezada()) {
                                 int[] comida = snGm.newFood();
                                 snGm.broadcast("{\"type\":\"updateFood\", \"id\":" + 0 + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
-                             
+                                
                                 msg = String.format("{\"type\": \"hideStartButton\"}", sb.toString());
                                 snGm.broadcast(msg);
+                                snGm.startTimer();
 
                             }
                             snGm.getFoods(session);
@@ -230,6 +231,15 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
 
                 break;
+                case "deleteRoom":{
+                    String gn = (String) session.getAttributes().get("snakeGame");
+                    for (WebSocketSession participant : sessions.values()) {
+                        participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
+                    }
+                    SnakeGames.remove(gn);
+                }
+                   
+                    break;
 
                 case "matchMaking":{
                     synchronized (SnakeGames) {
@@ -275,7 +285,14 @@ public class SnakeHandler extends TextWebSocketHandler {
                             dif = "Hard";
                         }
                         
-                    session.sendMessage(new TextMessage(String.format("{\"type\":\"joinConfirmed\", \"number\":" + g.getSnakes().size() + ", \"room\":\"" + node.get("value").asText() + "\", \"difficulty\":\"" + dif + "\",\"players\":\""+ sb +"\"}")));
+                        String mode = "";
+                        if(g.gameMode == 1){
+                            mode = "Max number of fruits";
+                        }else if(g.gameMode == 2){
+                            mode = "Max length of snakes";
+                        }
+                        
+                    session.sendMessage(new TextMessage(String.format("{\"type\":\"joinConfirmed\", \"number\":" + g.getSnakes().size() + ", \"room\":\"" + node.get("value").asText() + "\", \"difficulty\":\"" + dif + "\", \"gameMode\":\"" + mode + "\",\"players\":\""+ sb +"\"}")));
                 }                    
                 break;
                 default:

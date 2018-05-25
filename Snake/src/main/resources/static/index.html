@@ -15,6 +15,7 @@
 			<div id="console"></div>
 		</div>
 		
+		<div id="legend"></div>
 		<button id="leaveGame" type="button"> Leave Game </button>	
 		
 	</div>
@@ -23,30 +24,47 @@
 		<button id="matchMaking" type="button"> Matchmaking </button>
 		<button id="newGame" type="button"> New Game </button>
 	</div>
-	<form id ="settings">
+	<div id ="settings">
 				
-		<h1>Difficulty</h1>
+		<form  id ="setDifficulty">
+			<h1>Difficulty</h1>
+			<label class="container">Easy
+			  <input type="radio" value="1" checked="" name="radio">
 
-		<label class="container">Easy
-		  <input type="radio" value="1" checked="" name="radio">
+			  <span class="checkmark"></span>
+			</label>
 
-		  <span class="checkmark"></span>
-		</label>
+			<label class="container">Normal
+			  <input type="radio" value="2" checked="" name="radio">
+			  <span class="checkmark"></span>
+			</label>
 
-		<label class="container">Normal
-		  <input type="radio" value="2" checked="" name="radio">
-		  <span class="checkmark"></span>
-		</label>
+			<label class="container">Hard
+			  <input type="radio" value="4" checked="" name="radio">
+			  <span class="checkmark"></span>
+			</label>
 
-		<label class="container">Hard
-		  <input type="radio" value="4" checked="" name="radio">
-		  <span class="checkmark"></span>
-		</label>
 
+		</form>
+
+		<form id="setMode">
+			<h1>Game Mode</h1>
+			<label class="container">Max. number of fruits
+			  <input type="radio" value="1" checked="" name="radio">
+			  <span class="checkmark"></span>
+			</label>
+
+			<label class="container">Max. snake length
+			  <input type="radio" value="2" checked="" name="radio">
+			  <span class="checkmark"></span>
+			</label>
+
+
+		</form>
 
 		<button id="getValue" type="button"> Ok </button>
-		
-	</form>
+		<button id="getValueCancel" type="button"> Cancel </button>
+	</div>
 	<div id="waitJoin">
 		<p id="pWaitJoin"></p>
 		<button id="cancelButton" type="button" hidden="true"> Cancel </button>

@@ -215,7 +215,7 @@ class Game {
 					}
 					
 					this.disableKeys();
-					
+					this.foods = [];
 					$("#room").hide();
 					$("#game-buttons").show();
 					break;
@@ -333,10 +333,13 @@ class Game {
 					}
 					break;
 				case 'endGame':
-				inGame = false;
-						$("#room").hide();
+					inGame = false;
+						//mostrar resultados
+					$("#room").hide();
 					$("#game-buttons").show();
 					alert("Game over");
+					this.foods = [];
+					socket.send(JSON.stringify({op : "deleteRoom"}));  
 					
 					break;
 				case 'notEnoughPlayers':
@@ -357,7 +360,7 @@ class Game {
 				break;
 				case 'matchMaking':
 					var room = packet.room;
-					alert("You have joined room " + room + ".");
+					alert("Choosen room: " + room + ".");
 					this.joinGame(room);
 					break;
 				case 'matchMakingError':
@@ -366,9 +369,22 @@ class Game {
 				case 'joinConfirmed':
 				console.log("case joinConfirmed");
 					 if(confirm("Do you want to join this room?\n\r • Number of players: " + packet.number + "\n\r • Player names: " 
-					 	+ packet.players + "\n\r • Difficulty: " + packet.difficulty)){
+					 	+ packet.players + "\n\r • Difficulty: " + packet.difficulty + "\n\r • Game mode: " 
+					 	+ packet.gameMode)){
 					 	socket.send(JSON.stringify({op : "JoinGame" , value : packet.room}));
 					 }
+		 		break;
+		 		case 'updateLegend':
+		 			var leyen = document.getElementById("legend");
+		 			leyen.innerHTML ="";
+
+		 			for( var i = 0; i<packet.names.length; i++){
+		 				leyen.innerHTML += '<p id="j_' +i + '"'+ ' > • ' + packet.names[i] + ': '+ packet.scores[i] + '\n\r </p>';
+		 				document.getElementById("j_"+i).style.color = packet.colors[i];
+		 				document.getElementById("j_"+i).style.textShadow = "1px 1px black";
+		 			}
+
+
 		 		break;
 			}
 
@@ -441,7 +457,7 @@ class Game {
 		var isAd = !(admin == "" || admin == undefined || admin == null);
 		inGame = false;
 		socket.send(JSON.stringify({op : "LeaveGame" , isAdmin : isAd}));
-		
+		this.foods = [];
 		
 		this.disableKeys();
 		
@@ -452,21 +468,38 @@ class Game {
 function getGameSettings() {
 	
     var val;
-    // get list of radio buttons with specified name
-    var radios = document.getElementById('settings').elements["radio"];
+    var mode;
+    var radios = document.getElementById('setDifficulty').elements["radio"];
     
-    // loop through list of radio buttons
     for (var i=0, len=radios.length; i<len; i++) {
-        if ( radios[i].checked ) { // radio checked?
-            val = radios[i].value; // if so, hold its value in val
-            break; // and break out of for loop
+        if ( radios[i].checked ) { 
+            val = radios[i].value; 
+            break;
         }
     }
   
+  	radios = document.getElementById('setMode').elements["radio"];
+    
+    for (var i=0, len=radios.length; i<len; i++) {
+        if ( radios[i].checked ) { 
+            mode = radios[i].value; 
+            break; 
+        }
+    }
+  
+
     // return value of checked radio or undefined if none checked
-	socket.send(JSON.stringify({op : "createGame" , value : admin, dif : val}));
+	socket.send(JSON.stringify({op : "createGame" , value : admin, dif : val, gameMode : mode}));
 
 }
+
+function cancelGameSettings(){
+	$("#room").hide();
+	$("#game-buttons").show();
+	$("#waitJoin").hide();
+	$("#settings").hide();
+}
+
 //function joinGameHandler(e) {
 //    game.joinGame(e.target.getAttribute("id"));
 //}
@@ -483,6 +516,7 @@ $(document).ready(function() {
 	game = new Game();
     game.initialize();
     document.getElementById("getValue").addEventListener("click", () =>getGameSettings());
+    document.getElementById("getValueCancel").addEventListener("click", () =>cancelGameSettings());
     document.getElementById("matchMaking").addEventListener("click", () => game.matchmaking());
     document.getElementById("newGame").addEventListener("click", () => game.newGame());
     document.getElementById("leaveGame").addEventListener("click", () => game.leaveGame());
