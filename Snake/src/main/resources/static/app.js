@@ -29,6 +29,20 @@ class Snake {
 		}
 	}
 }
+
+class Food{
+	constructor(){
+		this.location = [];
+		this.color = '#ff0000';
+	}
+	draw(context){
+		
+		context.fillStyle = this.color;
+
+		context.fillRect(this.location[0], this.location[1], game.gridSize, game.gridSize);
+	}
+}
+
 var inGame = false;
 var socket;
 var admin; //String que guarda el nombre de la sala que administra. Si no administra ninguna, vale "" o undefined o null.
@@ -57,6 +71,8 @@ class Game {
 	initialize() {	
 	
 		this.snakes = [];
+		this.foods = [];
+
 		let canvas = document.getElementById('playground');
 		if (!canvas.getContext) {
 			Console.log('Error: 2d canvas not supported by this browser.');
@@ -71,7 +87,7 @@ class Game {
 	setDirection(direction) {
 		this.direction = direction;
 		socket.send(JSON.stringify({op : "Dir" , value : direction}));
-		Console.log('Sent: Direction ' + direction);
+		//Console.log('Sent: Direction ' + direction);
 	}
 
 	startGameLoop() {
@@ -94,6 +110,13 @@ class Game {
 		this.context.clearRect(0, 0, 640, 480);
 		for (var id in this.snakes) {			
 			this.snakes[id].draw(this.context);
+		}
+	
+
+		for(var bar in game.foods){
+			if(game.foods[bar] != undefined)
+				game.foods[bar].draw(this.context);
+
 		}
 	}
 
@@ -160,6 +183,15 @@ class Game {
 						this.updateSnake(packet.data[i].id, packet.data[i].body);
 					}
 					break;
+				case 'updateFood':
+					if(packet.tru){//si tru es true , es una comida nueva, si tru es false, comida a eliminar
+						this.foods[packet.id] = new Food();
+						this.foods[packet.id].location[0] = packet.pos[0];
+						this.foods[packet.id].location[1] = packet.pos[1];
+					}else{
+						this.foods[packet.id] = undefined;
+					}
+					break;
 				case 'join':
 					for (var j = 0; j < packet.data.length; j++) {
 						this.addSnake(packet.data[j].id, packet.data[j].color);
@@ -193,6 +225,9 @@ class Game {
 					break;
 				case 'kill':
 					Console.log('Info: Head shot!');
+					break;
+				case 'rewardFood':
+					Console.log('Info: Yum yum!');
 					break;
 				case 'gameNameNotValid':
 						admin = "";
@@ -318,10 +353,12 @@ class Game {
 					if(!(admin == "" || admin == undefined || admin == null	) ){
 						$("#startGame").hide();
 					}
+				break;
 				case 'matchMaking':
 					var room = packet.room;
 					alert("You have joined room " + room + ".");
 					this.joinGame(room);
+					console.log("bbbbbb");
 					break;
 				case 'matchMakingError':
 					alert("There are no available rooms.") 
@@ -333,6 +370,7 @@ class Game {
 
 	matchmaking() {
 		socket.send(JSON.stringify({op : "matchMaking"}));
+		console.log("aaaaaaaaaaaa");
 	}
 
 	newGame() {
@@ -419,7 +457,7 @@ function getGameSettings() {
             break; // and break out of for loop
         }
     }
-    alert("Dificultad seleccionada "+ val)
+  
     // return value of checked radio or undefined if none checked
 	socket.send(JSON.stringify({op : "createGame" , value : admin, dif : val}));
 

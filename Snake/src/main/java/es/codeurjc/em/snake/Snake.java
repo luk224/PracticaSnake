@@ -3,6 +3,7 @@
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -16,6 +17,8 @@ public class Snake {
 	private Location head;
 	private final Deque<Location> tail = new ArrayDeque<>();
 	private int length = DEFAULT_LENGTH;
+        
+        private int score = 0;
 
 	private final String hexColor;
 	private String name;
@@ -39,12 +42,21 @@ public class Snake {
 
 	private synchronized void kill() throws Exception {
 		resetState();
+                
+                if(score > 0)
+                    this.score--; //Si te da otra serpiente pierdes un punto
 		sendMessage("{\"type\": \"dead\"}");
 	}
 
 	private synchronized void reward() throws Exception {
 		this.length++;
+                this.score++; //Darle a una serpiente suma un punto
 		sendMessage("{\"type\": \"kill\"}");
+	}
+        private synchronized void rewardFood() throws Exception {
+		this.length++;
+                this.score++; //Coger comida suma un punto
+		sendMessage("{\"type\": \"rewardFood\"}");
 	}
 
 	protected void sendMessage(String msg) throws Exception {
@@ -52,10 +64,7 @@ public class Snake {
 	}
 
 	public synchronized void update(Collection<Snake> snakes) throws Exception {
-
-                
-            
-		Location nextLocation = this.head.getAdjacentLocation(this.direction);
+                Location nextLocation = this.head.getAdjacentLocation(this.direction);
                 //Esto hace que aprezca por los bordes.
 		if (nextLocation.x >= Location.PLAYFIELD_WIDTH) {
 			nextLocation.x = 0;
@@ -95,8 +104,22 @@ public class Snake {
 					snake.reward();
 				}
 			}
-		}
+                }
+                
+                
 	}
+        
+        public int handleCollisionsFoods(ConcurrentHashMap<Integer, int[]> foods) throws Exception{
+            for(int comida : foods.keySet()){
+                    boolean headCollision = (this.getHead().x == foods.get(comida)[0] && this.getHead().y == foods.get(comida)[1]);
+                    if(headCollision){
+                        this.rewardFood();
+                        return comida;
+                    }
+            }
+            return -1;
+        }
+        
 
 	public synchronized Location getHead() {
 		return this.head;
