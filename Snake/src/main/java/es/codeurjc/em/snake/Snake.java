@@ -9,7 +9,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 public class Snake {
-
+	
     private static final int DEFAULT_LENGTH = 5;
 
     private final int id;

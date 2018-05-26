@@ -2,6 +2,8 @@ package es.codeurjc.em.snake;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -12,7 +14,6 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -34,6 +35,9 @@ public class SnakeHandler extends TextWebSocketHandler {
 
     private static final String SNAKE_ATT = "snake";
 
+    private Lock lockSnakeGames = new ReentrantLock();
+    private Lock lockConnectedPlayers = new ReentrantLock();
+    
     private AtomicInteger snakeIds = new AtomicInteger(0);
     private List<WebSocketSession> lobbyPlayers = Collections.synchronizedList(new ArrayList<>());
     private Set<String> connectedPlayers = Collections.synchronizedSet(new HashSet<>());
@@ -44,9 +48,8 @@ public class SnakeHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
 
-        if (session.getId().equals("0")) {
+        if (session.getId().equals("0"))
             readFile();
-        }
 
         sessions.put(session.getId(), session);
 
@@ -56,17 +59,19 @@ public class SnakeHandler extends TextWebSocketHandler {
 
         session.getAttributes().put(SNAKE_ATT, s);
 
-        synchronized (SnakeGames) {
-            if (!SnakeGames.isEmpty()) {
-                Set<String> keys = SnakeGames.keySet();
-                ObjectMapper mapper = new ObjectMapper();
-                String mapeado = mapper.writeValueAsString(keys);
-                System.out.println("" + mapeado + "");
-                //String[] lista = (String[]) keys.toArray();
+        lockSnakeGames.lock();
+        if (!SnakeGames.isEmpty()) {
+            Set<String> keys = SnakeGames.keySet();
+            lockSnakeGames.unlock();
+            ObjectMapper mapper = new ObjectMapper();
+            String mapeado = mapper.writeValueAsString(keys);
+            System.out.println("" + mapeado + "");
 
-                session.sendMessage(new TextMessage("{\"type\":\"roomsCreated\", \"rooms\":" + mapeado + "}"));
-            }
+            session.sendMessage(new TextMessage("{\"type\":\"roomsCreated\", \"rooms\":" + mapeado + "}"));
         }
+        else
+        	lockSnakeGames.unlock();
+        
         session.sendMessage(new TextMessage("{\"type\":\"updateRecords\", \"records\":" + recordsToJSON() + "}"));
     }
 
@@ -88,14 +93,18 @@ public class SnakeHandler extends TextWebSocketHandler {
             switch (node.get("op").asText()) {
                 case "Name": {
                     String n = node.get("value").asText();
-                    synchronized (connectedPlayers) {
-                        if (connectedPlayers.contains(n)) {
-                            session.sendMessage(new TextMessage("{\"type\":\"userNameNotValid\"}"));
-                        } else {
-                            connectedPlayers.add(n);
-                            s.setName(n);
-                            addLobby(session);
-                        }
+
+                    lockConnectedPlayers.lock();
+                    if (connectedPlayers.contains(n)) {
+                    	lockConnectedPlayers.unlock();
+                    	
+                        session.sendMessage(new TextMessage("{\"type\":\"userNameNotValid\"}"));
+                    } else {
+                        connectedPlayers.add(n);
+                        lockConnectedPlayers.unlock();
+                        
+                        s.setName(n);
+                        addLobby(session);
                     }
                 }
                 break;
@@ -109,12 +118,10 @@ public class SnakeHandler extends TextWebSocketHandler {
                 case "GameName": {
                     String gn1 = node.get("value").asText();
 
-                    synchronized (SnakeGames) {
-                        if (SnakeGames.containsKey(gn1)) {
-                            session.sendMessage(new TextMessage("{\"type\":\"gameNameNotValid\"}"));
-                        } else {
-                            session.sendMessage(new TextMessage("{\"type\":\"newRoomSettings\"}"));
-                        }
+                    if (SnakeGames.containsKey(gn1)) {
+                        session.sendMessage(new TextMessage("{\"type\":\"gameNameNotValid\"}"));
+                    } else {
+                        session.sendMessage(new TextMessage("{\"type\":\"newRoomSettings\"}"));
                     }
                 }
                 break;
@@ -214,25 +221,26 @@ public class SnakeHandler extends TextWebSocketHandler {
                 break;
 
                 case "matchMaking": {
-                    synchronized (SnakeGames) {
-                        int aux = 0;
-                        String auxK = "";
-                        for (String k : SnakeGames.keySet()) {
-                            if ((SnakeGames.get(k).getSnakes().size() < 4) && (SnakeGames.get(k).getSnakes().size() > aux)) {
-                                aux = SnakeGames.get(k).getSnakes().size();
-                                auxK = k;
-                                if (aux == 3) {
-                                    break;
-                                }
+                	int aux = 0;
+                    String auxK = "";
+                	
+                    lockSnakeGames.lock();
+                    for (String k : SnakeGames.keySet()) {
+                        if ((SnakeGames.get(k).getSnakes().size() < 4) && (SnakeGames.get(k).getSnakes().size() > aux)) {
+                            aux = SnakeGames.get(k).getSnakes().size();
+                            auxK = k;
+                            if (aux == 3) {
+                                break;
                             }
                         }
+                    }
+                    lockSnakeGames.unlock();
 
-                        if (!"".equals(auxK)) {
-                            System.out.println("auxK " + auxK);
-                            session.sendMessage(new TextMessage(String.format("{\"type\":\"matchMaking\", \"room\":\"" + auxK + "\"}")));
-                        } else {
-                            session.sendMessage(new TextMessage(String.format("{\"type\":\"matchMakingError\"}")));
-                        }
+                    if (!"".equals(auxK)) {
+                        System.out.println("auxK " + auxK);
+                        session.sendMessage(new TextMessage(String.format("{\"type\":\"matchMaking\", \"room\":\"" + auxK + "\"}")));
+                    } else {
+                        session.sendMessage(new TextMessage(String.format("{\"type\":\"matchMakingError\"}")));
                     }
                 }
                 break;
@@ -260,6 +268,28 @@ public class SnakeHandler extends TextWebSocketHandler {
         }
     }
 
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
+
+        System.out.println("Connection closed. Session " + session.getId());
+
+        Snake s = (Snake) session.getAttributes().get(SNAKE_ATT);
+        
+        String gn = (String) session.getAttributes().get("snakeGame");
+        
+        sessions.remove(session.getId());
+        removeLobby(session);
+        connectedPlayers.remove(s.getName());
+
+        if ((gn != null) && SnakeGames.containsKey(gn)) { //Si estaba en una partida...
+            SnakeGame snGm = SnakeGames.get(gn);
+            synchronized (snGm) {
+                snGm.removeSnake(s);
+                exitGame(session, snGm, gn, s);
+            }
+        }
+    }
+    
     public void requestRoomData(WebSocketSession session, String rum) throws IOException {
         SnakeGame g = SnakeGames.get(rum);
         StringBuilder sb = new StringBuilder();
@@ -323,28 +353,6 @@ public class SnakeHandler extends TextWebSocketHandler {
         int[] comida = snGm.newFood();
         snGm.broadcast("{\"type\":\"updateFood\", \"id\":" + 0 + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
         snGm.broadcast("{\"type\": \"hideStartButton\"}");
-    }
-
-    @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-
-        System.out.println("Connection closed. Session " + session.getId());
-
-        Snake s = (Snake) session.getAttributes().get(SNAKE_ATT);
-        
-        String gn = (String) session.getAttributes().get("snakeGame");
-        
-        sessions.remove(session.getId());
-        removeLobby(session);
-        connectedPlayers.remove(s.getName());
-
-        if ((gn != null) && SnakeGames.containsKey(gn)) { //Si estaba en una partida...
-            SnakeGame snGm = SnakeGames.get(gn);
-            synchronized (snGm) {
-                snGm.removeSnake(s);
-                exitGame(session, snGm, gn, s);
-            }
-        }
     }
 
     public void exitGame(WebSocketSession session, SnakeGame snGm, String gn, Snake s) throws Exception {
@@ -423,24 +431,23 @@ public class SnakeHandler extends TextWebSocketHandler {
     public StringBuilder recordsToJSON() {
         StringBuilder sb = new StringBuilder();
 
-        synchronized (playerScores) {
-            List<Entry<String, Integer>> list = new ArrayList<>(playerScores.entrySet());
-            list.sort(Entry.comparingByValue());
+        List<Entry<String, Integer>> list = new ArrayList<>(playerScores.entrySet());
+        list.sort(Entry.comparingByValue());
 
-            if (list.size() <= 0) {
-                sb.append("[]");
-            } else {
-                sb.append("[");
-                for (int i = list.size() - 1; i > list.size() - 11 && i >= 0; i--) {
-                    sb.append("[\"" + list.get(i).getKey() + "\",");
-                    sb.append(list.get(i).getValue().toString() + "] ,");
-                }
-                if (sb.length() > 0) {
-                    sb.deleteCharAt(sb.length() - 1);
-                }
-                sb.append("]");
+        if (list.size() <= 0) {
+            sb.append("[]");
+        } else {
+            sb.append("[");
+            for (int i = list.size() - 1; i > list.size() - 11 && i >= 0; i--) {
+                sb.append("[\"" + list.get(i).getKey() + "\",");
+                sb.append(list.get(i).getValue().toString() + "] ,");
             }
+            if (sb.length() > 0) {
+                sb.deleteCharAt(sb.length() - 1);
+            }
+            sb.append("]");
         }
+            
         return sb;
     }
 

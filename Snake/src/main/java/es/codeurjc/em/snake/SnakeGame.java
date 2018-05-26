@@ -121,11 +121,9 @@ public class SnakeGame {
                             comidas.remove(c);
                             broadcast("{\"type\":\"updateFood\", \"id\":" + c + ", \"tru\" : false}");
 
-                            synchronized (numFoods) {
-                                int count = numFoods.get();
-                                int[] comida = newFood();
-                                broadcast("{\"type\":\"updateFood\", \"id\":" + count + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
-                            }
+                            int count = numFoods.get();
+                            int[] comida = newFood();
+                            broadcast("{\"type\":\"updateFood\", \"id\":" + count + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
                         }
                     }
                 }
