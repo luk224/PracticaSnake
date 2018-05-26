@@ -43,6 +43,7 @@ public class SnakeHandler extends TextWebSocketHandler {
 
     private AtomicInteger snakeIds = new AtomicInteger(0);
 
+    private List<WebSocketSession> lobbyPlayers = Collections.synchronizedList(new ArrayList<>());
     private Set<String> connectedPlayers = Collections.synchronizedSet(new HashSet<>());
     private ConcurrentHashMap<String, Integer> playerScores = new ConcurrentHashMap<>();
     
@@ -105,6 +106,7 @@ public class SnakeHandler extends TextWebSocketHandler {
 	                    else {
 	                    	connectedPlayers.add(n);
 	                    	s.setName(n);
+	                        addLobby(session);
 	                    }
                     }
                 }
@@ -148,6 +150,9 @@ public class SnakeHandler extends TextWebSocketHandler {
                 case "JoinGame": {
                     String gn3 = node.get("value").asText();
                     SnakeGame snGm = SnakeGames.get(gn3);
+
+                    removeLobby(session);
+                    
                     synchronized (snGm) {
 
                         if (snGm.getSnakes().size() < 4) {
@@ -186,9 +191,12 @@ public class SnakeHandler extends TextWebSocketHandler {
                 case "tryToJoin": { //CodigoCopiado de JoinGame, se puede hacer limpieza
                     String gn3 = node.get("value").asText();
                     SnakeGame snGm = SnakeGames.get(gn3);
+                    
                     synchronized (snGm) {
 
                         if (snGm.getSnakes().size() < 4) {
+                            removeLobby(session);
+                        	
                             session.getAttributes().put("snakeGame", gn3);
                             snGm.addSnake(s);
                             StringBuilder sb = new StringBuilder();
@@ -221,7 +229,7 @@ public class SnakeHandler extends TextWebSocketHandler {
                     String gn = (String) session.getAttributes().get("snakeGame");
 
                     SnakeGame snGm = SnakeGames.get(gn);
-
+                    
                     synchronized (snGm) {
 
                         if (session.getId().equals(snGm.getAdmin())) {
@@ -235,6 +243,7 @@ public class SnakeHandler extends TextWebSocketHandler {
 
                             snGm.broadcast(String.format("{\"type\": \"kicked\"}"));
                             for (Snake snake : snGm.getSnakes()) {
+                            	addLobby(snake.getSession());
                                 snGm.removeSnake(snake);
                             }
                             for (WebSocketSession participant : sessions.values()) {
@@ -243,6 +252,8 @@ public class SnakeHandler extends TextWebSocketHandler {
                             SnakeGames.remove(gn);
 
                         } else if (snGm.empezada() && snGm.getSnakes().size() == 2) {
+                        	addLobby(session);
+                        	
                             String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
                             snGm.broadcast(msg);
                             snGm.removeSnake(s);
@@ -255,6 +266,8 @@ public class SnakeHandler extends TextWebSocketHandler {
                             }
                             SnakeGames.remove(gn);
                         } else {//No ha sido el admin y la partida sigue. solo se va uno.
+                        	addLobby(session);
+                        	
                             String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
 
                             snGm.broadcast(msg);
@@ -355,7 +368,16 @@ public class SnakeHandler extends TextWebSocketHandler {
                     session.sendMessage(new TextMessage(String.format("{\"type\":\"joinConfirmed\", \"number\":" + g.getSnakes().size() + ", \"room\":\"" + node.get("value").asText() + "\", \"difficulty\":\"" + dif + "\", \"gameMode\":\"" + mode + "\",\"players\":\""+ sb +"\"}")));
                 }                    
                 break;
-                default:
+                
+                case "chat":
+                	String msg = "<b>" + s.getName() + ":</b> " + node.get("message").asText();
+                	
+                	for (WebSocketSession participant : lobbyPlayers) {
+                			participant.sendMessage(new TextMessage("{\"type\":\"chat\", \"msg\":\"" + msg + "\"}"));
+                	}
+                	break;
+                
+                default:	
                     break;
             }
 
@@ -393,6 +415,9 @@ public class SnakeHandler extends TextWebSocketHandler {
         Snake s = (Snake) session.getAttributes().get(SNAKE_ATT);
         String gn = (String) session.getAttributes().get("snakeGame");
         sessions.remove(session.getId());
+        
+        removeLobby(session);
+        
         connectedPlayers.remove(s.getName());
 
         if ((gn != null) && SnakeGames.containsKey(gn)) {
@@ -432,6 +457,54 @@ public class SnakeHandler extends TextWebSocketHandler {
             }
         }
     }
+    
+    public void addLobby(WebSocketSession session)
+    {
+    	lobbyPlayers.add(session);
+    	
+    	refreshLobby();
+    }
+    
+    public void removeLobby(WebSocketSession session)
+    {
+    	synchronized (lobbyPlayers)
+    	{
+	    	if (lobbyPlayers.contains(session))
+	    	{
+	    		lobbyPlayers.remove(session);
+	    	}
+    	}
+    	
+    	refreshLobby();
+    }
+    
+    public void refreshLobby()
+    {
+    	try {
+    		
+	        StringBuilder sb = new StringBuilder();
+	        
+	        for (WebSocketSession participant : lobbyPlayers) {
+	        	Snake s = (Snake) participant.getAttributes().get(SNAKE_ATT);
+	        	
+	            sb.append('"');
+	            sb.append(s.getName());
+	            sb.append('"');
+	            sb.append(',');
+	        }
+	        
+	        sb.deleteCharAt(sb.length() - 1);
+	
+	        String msg = String.format("{\"type\": \"updateChatList\", \"names\" :[ " + sb + " ]}");
+	
+	    	for (WebSocketSession participant : lobbyPlayers) {
+					participant.sendMessage(new TextMessage(msg));
+	    	}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+    }
+    
     public StringBuilder recordsToJSON() {
         StringBuilder sb = new StringBuilder();
         

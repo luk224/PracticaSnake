@@ -146,6 +146,11 @@ public class Snake {
 		return this.name;
 	}
 
+    public WebSocketSession getSession()
+    {
+    	return session;
+    }
+        
 	public String getHexColor() {
 		return this.hexColor;
 	}
