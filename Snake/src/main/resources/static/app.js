@@ -176,7 +176,7 @@ class Game {
 
 		socket.onmessage = (message) => {
 			var packet = JSON.parse(message.data);
-			console.log(packet);
+			//console.log(packet);
 			switch (packet.type) {
 				case 'update':
 					for (var i = 0; i < packet.data.length; i++) {
@@ -214,10 +214,12 @@ class Game {
 						delete this.snakes[id];
 					}
 					
+					this.setDirection('none');
+
 					this.disableKeys();
 					this.foods = [];
 					$("#room").hide();
-					$("#game-buttons").show();
+					$("#lobby").show();
 					break;
 				case 'dead':
 					Console.log('Info: Your snake is dead, bad luck!');
@@ -229,6 +231,17 @@ class Game {
 				case 'rewardFood':
 					Console.log('Info: Yum yum!');
 					break;
+
+				case 'userNameNotValid':
+					alert("Error: Username already in use.");
+
+					do {
+						var name = prompt("Please enter a valid name:", "");			
+					} while (name == "" || name == undefined || name == null);
+					
+					socket.send(JSON.stringify({op : "Name" , value : name}));
+					break;
+					
 				case 'gameNameNotValid':
 						admin = "";
 					
@@ -237,8 +250,6 @@ class Game {
 					break;
 					
 				case 'gameFull':
-					
-
 					$("#cancelButton").show();
 					document.getElementById("pWaitJoin").innerHTML = "Game is full, trying to connect...";
 					$("#waitJoin").show();
@@ -274,7 +285,7 @@ class Game {
 					//Establecer ajustes y mandar al servidor, llamando al case de createGame pasandale los datos necesarios.
 					$("#settings").show();
 					$("#room").hide();
-					$("#game-buttons").hide();
+					$("#lobby").hide();
 					$("#waitJoin").hide();
 
 					//getGameSettings();
@@ -310,7 +321,7 @@ class Game {
 				    
 				    //btn.setAttribute("onclick", "joinGameHandler(event)");
 				    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
-				    document.getElementById("game-buttons").appendChild(btn);
+				    document.getElementById("lobby").appendChild(btn);
 					break;
 
 				case 'roomsCreated':
@@ -329,17 +340,27 @@ class Game {
 					    //btn.setAttribute("onclick", "joinGameHandler(event)");
 					    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
 					    
-					    document.getElementById("game-buttons").appendChild(btn);
+					    document.getElementById("lobby").appendChild(btn);
 					}
 					break;
 				case 'endGame':
 					inGame = false;
 						//mostrar resultados
 					$("#room").hide();
-					$("#game-buttons").show();
+					$("#lobby").show();
 					alert("Game over");
 					this.foods = [];
-					socket.send(JSON.stringify({op : "deleteRoom"}));  
+					this.setDirection('none');
+
+					for (var id in this.snakes) 
+					{			
+						this.snakes[id] = null;
+						delete this.snakes[id];
+					}
+
+					if(!(admin == "" || admin == undefined || admin == null	)){
+						socket.send(JSON.stringify({op : "deleteRoomRequest"})); 
+					} 
 					
 					break;
 				case 'notEnoughPlayers':
@@ -441,13 +462,12 @@ class Game {
 	
 	joinGame(joinNameVal) {
 		socket.send(JSON.stringify({op : "requestRoomData" , value : joinNameVal}));
-		console.log("function joinGame");
 	}
 	
 	joinGameUI() {
 		inGame = true;
 		$("#room").show();
-		$("#game-buttons").hide();
+		$("#lobby").hide();
 		$("#waitJoin").hide();
 		this.enableKeys();
 		$("#settings").hide();
@@ -458,11 +478,18 @@ class Game {
 		inGame = false;
 		socket.send(JSON.stringify({op : "LeaveGame" , isAdmin : isAd}));
 		this.foods = [];
+
+		for (var id in this.snakes) {			
+			this.snakes[id] = null;
+			delete this.snakes[id];
+		}
 		
+		this.setDirection('none');
+
 		this.disableKeys();
 		
 		$("#room").hide();
-		$("#game-buttons").show();
+		$("#lobby").show();
 	}
 }
 function getGameSettings() {
@@ -495,7 +522,7 @@ function getGameSettings() {
 
 function cancelGameSettings(){
 	$("#room").hide();
-	$("#game-buttons").show();
+	$("#lobby").show();
 	$("#waitJoin").hide();
 	$("#settings").hide();
 }
