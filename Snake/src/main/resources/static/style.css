@@ -26,6 +26,12 @@
 	margin: 0;
 }
 
+#chat-container {
+	float: left;
+	margin-left: 15px;
+	width: 300px;
+}
+
 #chat {
 	border: 1px solid #CCCCCC;
 	border-right-color: #999999;
@@ -40,10 +46,4 @@
 #chat p {
 	padding: 0;
 	margin: 0;
-}
-
-#chat-container {
-	float: left;
-	margin-left: 15px;
-	width: 300px;
 }

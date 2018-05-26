@@ -1,90 +1,81 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Multiplayer Snake</title>
-<link rel="stylesheet" href="style.css"></link>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-</head>
-<body>
-	<div id="room">
-		<div style="float: left">
-			<canvas id="playground" width="640" height="480"></canvas>
-		</div>
-		<div id="console-container">
-			<div id="console"></div>
-		</div>
-		
-		<div id="legend"></div>
-		<button id="leaveGame" type="button"> Leave Game </button>	
-		
-	</div>
-	
-	<div id="lobby">
-		<div id="chat-container">
-			<div id="listChat"> </div>
-			<div id="chat"> </div>
-			<input type="text" id="mensajetext" maxlength="25" style="width: 250px"/>
-			<button id="chatButton"> Send </button>
-			<button id="listChatButton"> People </button>
-		</div>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+		<title> Multiplayer Snake </title>
+		<link rel="stylesheet" href="style.css"></link>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	</head>
+	<body>
+		<div id="room">
+			<div style="float: left">
+				<canvas id="playground" width="640" height="480"></canvas>
+			</div>
 
-		<div id="records">
+			<div id="console-container">
+				<div id="console"></div>
+			</div>
+
+			<div id="legend"></div>
+			<button id="leaveGame" type="button"> Leave Game </button>	
 		</div>
 		
-		<button id="matchMaking" type="button"> Matchmaking </button>
-		<button id="newGame" type="button"> New Game </button>
-	</div>
+		<div id="lobby">
+			<div id="chat-container">
+				<div id="listChat"> </div>
+				<div id="chat"> </div>
+				<input type="text" id="mensajetext" maxlength="25" style="width: 250px"/>
+				<button id="chatButton"> Send </button>
+				<button id="listChatButton"> Online users </button>
+			</div>
 
-	<div id ="settings">
-				
-		<form  id ="setDifficulty">
-			<h1>Difficulty</h1>
-			<label class="container">
-			  <input type="radio" value="1" checked="" name="radio">
+			<div id="records"></div>
+			
+			<button id="matchMaking" type="button"> Matchmaking </button>
+			<button id="newGame" type="button"> New Game </button>
+		</div>
 
-			  <span class="checkmark"></span>
-			  Easy
-			</label>
+		<div id ="settings">					
+			<form id ="setDifficulty">
+				<h1> Difficulty </h1>
+				<label class="container">
+					<input type="radio" value="1" checked="false" name="radio">
+					<span class="checkmark"></span> Easy
+				</label>
 
-			<label class="container">
-			  <input type="radio" value="2" checked="" name="radio">
-			  <span class="checkmark"></span>
-			  Normal
-			</label>
+				<label class="container">
+					<input type="radio" value="2" checked="true" name="radio">
+					<span class="checkmark"></span> Normal
+				</label>
 
-			<label class="container">
-			  <input type="radio" value="4" checked="" name="radio">
-			  <span class="checkmark"></span>
-			  Hard
-			</label>
+				<label class="container">
+					<input type="radio" value="4" checked="false" name="radio">
+					<span class="checkmark"></span> Hard
+				</label>
+			</form>
 
+			<form id="setMode">
+				<h1> Game Mode </h1>
+				<label class="container">
+				  <input type="radio" value="1" checked="true" name="radio">
+				  <span class="checkmark"></span> Max. number of fruits
+				</label>
 
-		</form>
+				<label class="container">
+				  <input type="radio" value="2" checked="false" name="radio">
+				  <span class="checkmark"></span> Max. snake length
+				</label>
+			</form>
 
-		<form id="setMode">
-			<h1>Game Mode</h1>
-			<label class="container">Max. number of fruits
-			  <input type="radio" value="1" checked="" name="radio">
-			  <span class="checkmark"></span>
-			</label>
+			<button id="getValue" type="button"> Create </button>
+			<button id="getValueCancel" type="button"> Cancel </button>
+		</div>
 
-			<label class="container">Max. snake length
-			  <input type="radio" value="2" checked="" name="radio">
-			  <span class="checkmark"></span>
-			</label>
-
-
-		</form>
-
-		<button id="getValue" type="button"> Ok </button>
-		<button id="getValueCancel" type="button"> Cancel </button>
-	</div>
-	<div id="waitJoin">
-		<p id="pWaitJoin"></p>
-		<button id="cancelButton" type="button" hidden="true"> Cancel </button>
-	</div>
-	
-	<script src="app.js"></script>
-</body>
+		<div id="waitJoin">
+			<p id="pWaitJoin"></p>
+			<button id="cancelButton" type="button" hidden="true"> Cancel </button>
+		</div>
+		
+		<script src="app.js"></script>
+	</body>
 </html>

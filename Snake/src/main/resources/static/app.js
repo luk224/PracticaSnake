@@ -1,9 +1,16 @@
-var Console = {};
-var Chat = {};
+let game;
 
+var socket;
+var admin;
+
+var inGame = false;
+
+
+var Console = {};
 Console.log = (function(message) {
 	var console = document.getElementById('console');
 	var p = document.createElement('p');
+
 	p.style.wordWrap = 'break-word';
 	p.innerHTML = message;
 
@@ -15,9 +22,11 @@ Console.log = (function(message) {
 	console.scrollTop = console.scrollHeight;
 });
 
+var Chat = {};
 Chat.log = (function(message) {
 	var chat = document.getElementById('chat');
 	var p = document.createElement('p');
+
 	p.style.wordWrap = 'break-word';
 	p.innerHTML = message;
 
@@ -29,7 +38,6 @@ Chat.log = (function(message) {
 	chat.scrollTop = chat.scrollHeight;
 });
 
-let game;
 
 class Snake {
 
@@ -42,38 +50,27 @@ class Snake {
 		for (var pos of this.snakeBody) {
 			context.fillStyle = this.color;
 			context.fillRect(pos.x, pos.y,
-				game.gridSize, game.gridSize);
+			game.gridSize, game.gridSize);
 		}
 	}
 }
 
-class Food{
-	constructor(){
+class Food {
+
+	constructor() {
 		this.location = [];
 		this.color = '#ff0000';
 	}
-	draw(context){
-		
-		context.fillStyle = this.color;
 
+	draw(context) {
+		context.fillStyle = this.color;
 		context.fillRect(this.location[0], this.location[1], game.gridSize, game.gridSize);
 	}
 }
 
-var inGame = false;
-var socket;
-var admin; //String que guarda el nombre de la sala que administra. Si no administra ninguna, vale "" o undefined o null.
-
-function prueba (myVar,j){
-	clearInterval(myVar);
-	clearTimeout(j);
-	$("#waitJoin").hide();
-}
-
-
 class Game {
 	
-	constructor(){
+	constructor() {
 		this.fps = 30;
 		//this.socket = null;
 		this.nextFrame = null;
@@ -86,7 +83,6 @@ class Game {
 	}
 
 	initialize() {	
-	
 		this.snakes = [];
 		this.foods = [];
 
@@ -108,7 +104,6 @@ class Game {
 	}
 
 	startGameLoop() {
-	
 		this.nextFrame = () => {
 			requestAnimationFrame(() => this.run());
 		}
@@ -129,11 +124,9 @@ class Game {
 			this.snakes[id].draw(this.context);
 		}
 	
-
 		for(var bar in game.foods){
 			if(game.foods[bar] != undefined)
 				game.foods[bar].draw(this.context);
-
 		}
 	}
 
@@ -143,9 +136,8 @@ class Game {
 	}
 
 	updateSnake(id, snakeBody) {
-		if (this.snakes[id]) {
+		if (this.snakes[id])
 			this.snakes[id].snakeBody = snakeBody;
-		}
 	}
 
 	removeSnake(id) {
@@ -155,11 +147,12 @@ class Game {
 	}
 
 	run() {
-	
 		while ((new Date).getTime() > this.nextGameTick) {
 			this.nextGameTick += this.skipTicks;
 		}
+
 		this.draw();
+
 		if (this.nextFrame != null) {
 			this.nextFrame();
 		}
@@ -167,11 +160,11 @@ class Game {
 
 	connect() {
 		
-		socket = new WebSocket("ws://"+window.location.host+"/snake");
+		socket = new WebSocket("ws://" + window.location.host + "/snake");
 
 		socket.onopen = () => {
 			
-			// Socket open.. start the game loop.
+			//Socket open... start the game loop.
 			Console.log('Info: WebSocket connection opened.');
 			Console.log('Info: Press an arrow key to begin.');
 			
@@ -192,65 +185,42 @@ class Game {
 		}
 
 		socket.onmessage = (message) => {
-			console.log(message.data);
+			//console.log(message.data);
 			var packet = JSON.parse(message.data);
 			
 			switch (packet.type) {
-				case 'update':
+
+				case 'update': {
 					for (var i = 0; i < packet.data.length; i++) {
 						this.updateSnake(packet.data[i].id, packet.data[i].body);
 					}
-					break;
-				case 'updateFood':
-					if(packet.tru){//si tru es true , es una comida nueva, si tru es false, comida a eliminar
+				} break;
+
+				case 'updateFood': {
+					if(packet.tru) { //Si tru vale true, es una comida nueva, de lo contrario, es una comida a eliminar
 						this.foods[packet.id] = new Food();
 						this.foods[packet.id].location[0] = packet.pos[0];
 						this.foods[packet.id].location[1] = packet.pos[1];
-					}else{
+					}
+					else {
 						this.foods[packet.id] = undefined;
 					}
-					break;
-				case 'join':
-					for (var j = 0; j < packet.data.length; j++) {
-						this.addSnake(packet.data[j].id, packet.data[j].color);
-					}
-					this.joinGameUI();
-					break;
-				case 'leave':
-					this.removeSnake(packet.id);
-					break;
-				case 'kicked':
-					inGame = false;
-					if(!(admin == "" || admin == undefined || admin == null	) ){
-						alert("Eres el admin y te has ido");
-						document.getElementById("startGame").remove();
-						admin = "";
-					}
-					//this.removeSnake(packet.id);
-					for (var id in this.snakes) {			
-						this.snakes[id] = null;
-						delete this.snakes[id];
-					}
-					
-					this.setDirection('none');
+				} break;
 
-					this.disableKeys();
-					this.foods = [];
-					$("#room").hide();
-					$("#lobby").show();
-					break;
-				case 'dead':
-					Console.log('Info: Your snake is dead, bad luck!');
-					this.direction = 'none';
-					break;
-				case 'kill':
-					Console.log('Info: Head shot!');
-					break;
 				case 'rewardFood':
 					Console.log('Info: Yum yum!');
 					break;
 
-				case 'userNameNotValid':
+				case 'kill':
+					Console.log('Info: Head shot!');
+					break;
+				
+				case 'dead': {
+					Console.log('Info: Your snake is dead, bad luck!');
+					this.direction = 'none';
+				} break;
+
+				case 'userNameNotValid': {
 					alert("Error: Username already in use.");
 
 					do {
@@ -258,116 +228,167 @@ class Game {
 					} while (name == "" || name == undefined || name == null);
 					
 					socket.send(JSON.stringify({op : "Name" , value : name}));
-					break;
+				} break;
 					
-				case 'gameNameNotValid':
-						admin = "";
+				case 'gameNameNotValid': {
+					alert("Error: Game name already exists.");
 					
-						alert("Error: Game name already exists.");
-						this.newGame();
-					break;
-					
-				case 'gameFull':
-					$("#cancelButton").show();
-					document.getElementById("pWaitJoin").innerHTML = "Game is full, trying to connect...";
-					$("#waitJoin").show();
-					var myVar = setInterval( ( () => {
+					admin = "";
+					this.newGame();
+				} break;
 
-
-						if(!inGame){
-							socket.send(JSON.stringify({op : "tryToJoin" , value : packet.idRoom }));
-						}
-
-					}), 500);
-
-					
-
-				//">Stop it</button>	
-					var j = setTimeout(function(){clearInterval(myVar);
-						if(!inGame){
-							
-							document.getElementById("pWaitJoin").innerHTML = "Impossible to join.";
-						}
-						$("#cancelButton").hide();
-						document.getElementById("cancelButton").removeEventListener("click", function(){ prueba(myVar,j);});
-					}, 5000);
-
-					document.getElementById("cancelButton").addEventListener("click", function(){ prueba(myVar,j);});
-					break;
-					/*
-				case 'alreadyStarted': 
-					alert("Error: Game has already started.");
-					break;
-					*/
-				case 'newRoomSettings':
-					//Establecer ajustes y mandar al servidor, llamando al case de createGame pasandale los datos necesarios.
-					$("#settings").show();
-					$("#room").hide();
-					$("#lobby").hide();
-					$("#waitJoin").hide();
-
-					//getGameSettings();
-					
-					break;
-					
-				case 'newRoomCreator':
-					//this.joinGame(packet.name);
-					socket.send(JSON.stringify({op : "JoinGame" , value : packet.name}));
+				case 'newRoomCreator': {
 					var btn = document.createElement("BUTTON");
-					
 				    var t = document.createTextNode("Start Game");
+
 				    btn.appendChild(t);
 				    btn.setAttribute("id", "startGame");
 				    btn.setAttribute("type", "button");
-
-				    btn.addEventListener("click", () =>{
-				    	socket.send(JSON.stringify({op : "startGame"}));  
-				    });
+				    btn.addEventListener("click", () => socket.send(JSON.stringify({op : "startGame"})));
+					
 					document.getElementById("room").appendChild(btn);
 
-					break;
+					socket.send(JSON.stringify({op : "JoinGame" , value : packet.name}));
+				} break;
 					
-				case 'newRoom':
+				case 'newRoom': {
 					var packname = packet.name;
+
 					var btn = document.createElement("BUTTON");
-					
 				    var t = document.createTextNode(packname);
-				    //var t = document.createTextNode('<span id="s_' + packet.name + '">Start Game</span>');
+
 				    btn.appendChild(t);
 				    btn.setAttribute("id", packname);
 				    btn.setAttribute("type", "button");
-				    
-				    //btn.setAttribute("onclick", "joinGameHandler(event)");
 				    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
-				    document.getElementById("lobby").appendChild(btn);
-					break;
 
-				case 'roomsCreated':
+				    document.getElementById("lobby").appendChild(btn);
+				} break;
+				
+				case 'newRoomSettings':{
+					$("#room").hide();
+					$("#lobby").hide();
+					$("#waitJoin").hide();
+					$("#settings").show();
+				} break;
+
+				case 'roomsCreated': {
 					var obj = packet.rooms;
 					
 					for (var i = 0; i < obj.length; i++) {
 						var pen = obj[i];
-						
+
 						var btn = document.createElement("BUTTON");
-						
 					    var t = document.createTextNode(pen);
+
 					    btn.appendChild(t);
 					    btn.setAttribute("id", pen);
 					    btn.setAttribute("type", "button");
-					    
-					    //btn.setAttribute("onclick", "joinGameHandler(event)");
 					    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
 					    
 					    document.getElementById("lobby").appendChild(btn);
 					}
+				} break;
+
+				case 'gameFull': {
+					$("#waitJoin").show();
+					$("#cancelButton").show();
+
+					document.getElementById("pWaitJoin").innerHTML = "Game is full, trying to connect...";
+					
+					var myVar = setInterval( ( () => {
+						if(!inGame)
+							socket.send(JSON.stringify({op : "tryToJoin" , value : packet.idRoom }));
+					}), 500);
+
+					var j = setTimeout(function() {
+						clearInterval(myVar);
+
+						if(!inGame)
+							document.getElementById("pWaitJoin").innerHTML = "Impossible to join.";
+
+						$("#cancelButton").hide();
+
+						document.getElementById("cancelButton").removeEventListener("click", (myVar,j) => this.cancelWait(myVar,j));
+					}, 5000);
+
+					document.getElementById("cancelButton").addEventListener("click", (myVar,j) => this.cancelWait(myVar,j));
+				} break;
+
+				case 'matchMaking': {
+					var room = packet.room;
+					alert("Choosen room: " + room + ".");
+
+					this.joinGame(room);
+				} break;
+
+				case 'matchMakingError':
+					alert("There are no available rooms.") 
 					break;
-				case 'endGame':
+
+				case 'join': {
+					for (var j = 0; j < packet.data.length; j++) {
+						this.addSnake(packet.data[j].id, packet.data[j].color);
+					}
+					this.joinGameUI();
+				} break;
+
+				case 'joinConfirmed': {
+					if(confirm("Do you want to join this room?\n\r • Number of players: " + packet.number 
+					+ "\n\r • Player names: "+ packet.players + "\n\r • Difficulty: " + packet.difficulty + "\n\r • Game mode: " + packet.gameMode))
+						socket.send(JSON.stringify({op : "JoinGame" , value : packet.room}));
+		 		} break;
+
+				case 'notEnoughPlayers':
+					alert("You need to be at least 2 players to start a game.") 
+					break;
+
+				case 'hideStartButton': {
+					if(!(admin == "" || admin == undefined || admin == null))
+						$("#startGame").hide();
+				} break;
+
+				case 'leave':
+					this.removeSnake(packet.id);
+					break;
+
+				case 'kicked': {
 					inGame = false;
-						//mostrar resultados
+
+					if(!(admin == "" || admin == undefined || admin == null)) {
+						admin = "";
+						document.getElementById("startGame").remove();
+					}
+					else
+						alert("The administrator has left the game.");
+
+					this.foods = [];
+
+					for (var id in this.snakes) {			
+						this.snakes[id] = null;
+						delete this.snakes[id];
+					}
+					
+					this.setDirection('none');
+
+					window.removeEventListener('keydown', event => this.keys(event), false);
+					
 					$("#room").hide();
 					$("#lobby").show();
+				} break;
+
+				case 'deleteRoom': {
+					var idRoom = packet.id;
+					document.getElementById(idRoom).remove();
+				} break;
+				
+				case 'endGame': {
+					inGame = false;
+
+					$("#room").hide();
+					$("#lobby").show();
+
 					this.foods = [];
-					this.setDirection('none');
 
 					for (var id in this.snakes) 
 					{			
@@ -375,110 +396,142 @@ class Game {
 						delete this.snakes[id];
 					}
 
-					if(!(admin == "" || admin == undefined || admin == null	)){
+					this.setDirection('none');
+
+					if(!(admin == "" || admin == undefined || admin == null	))
 						socket.send(JSON.stringify({op : "deleteRoomRequest"})); 
-					} 
-					alert("Game over"); //Cambiar por div
+					
+					alert("Game over");
+				} break;
 
-					break;
-				case 'notEnoughPlayers':
-					alert("You need to be at least 2 players in the room to start a game.") 
-
-					break;
-				case 'enoughPlayers':
-					$("#startGame").hide();
-					break;
-				case 'deleteRoom':
-					var idRoom = packet.id;
-					document.getElementById(idRoom).remove();
-					break;
-				case 'hideStartButton':
-					if(!(admin == "" || admin == undefined || admin == null	) ){
-						$("#startGame").hide();
-					}
-				break;
-				case 'matchMaking':
-					var room = packet.room;
-					alert("Choosen room: " + room + ".");
-					this.joinGame(room);
-					break;
-				case 'matchMakingError':
-					alert("There are no available rooms.") 
-					break;
-				case 'joinConfirmed':
-				console.log("case joinConfirmed");
-					 if(confirm("Do you want to join this room?\n\r • Number of players: " + packet.number + "\n\r • Player names: " 
-					 	+ packet.players + "\n\r • Difficulty: " + packet.difficulty + "\n\r • Game mode: " 
-					 	+ packet.gameMode)){
-					 	socket.send(JSON.stringify({op : "JoinGame" , value : packet.room}));
-					 }
-		 		break;
-		 		case 'updateLegend':
+		 		case 'updateLegend': {
 		 			var leyen = document.getElementById("legend");
 		 			leyen.innerHTML ="";
 
-		 			for( var i = 0; i<packet.names.length; i++){
-		 				leyen.innerHTML += '<p id="j_' +i + '"'+ ' > • ' + packet.names[i] + ': '+ packet.scores[i] + '\n </p>';
-		 				document.getElementById("j_"+i).style.color = packet.colors[i];
-		 				document.getElementById("j_"+i).style.textShadow = "1px 1px black";
-		 			}
-		 		break;
+		 			for(var i = 0; i < packet.names.length; i++) {
+		 				leyen.innerHTML += '<p id="j_' + i + '"'+ ' > • ' + packet.names[i] + ': '+ packet.scores[i] + '\n </p>';
 
-		 		case 'updateRecords':
+		 				document.getElementById("j_" + i).style.color = packet.colors[i];
+		 				document.getElementById("j_" + i).style.textShadow = "1px 1px black";
+		 			}
+		 		} break;
+
+		 		case 'updateRecords': {
 		 			var r = document.getElementById("records");
 		 			r.innerHTML = "";
 
-		 			for(var i = 0; i<packet.records.length; i++){
+		 			for(var i = 0; i<packet.records.length; i++) {
 		 				r.innerHTML += '<p id="r_' +i + '"'+ ' > • ' + packet.records[i][0] + ': '+ packet.records[i][1] + '\n </p>';
 		 			}
-		 		break;
+		 		} break;
+
+				case 'updateChatList': {
+					var l = document.getElementById("listChat");
+		 			l.innerHTML = "";
+
+		 			for(var i = 0; i<packet.names.length; i++) {
+		 				l.innerHTML += '<p id="l_' +i + '"'+ ' > • ' + packet.names[i] + '\n </p>';
+		 			}
+				} break;
 
 		 		case'chat':
 					Chat.log(packet.msg);
 					break;
 
-				case 'updateChatList':
-					var l = document.getElementById("listChat");
-		 			l.innerHTML = "";
-
-		 			for(var i = 0; i<packet.names.length; i++){
-		 				l.innerHTML += '<p id="l_' +i + '"'+ ' > • ' + packet.names[i] + '\n </p>';
-		 			}
-					break;
-
 				default:
 					break;
 			}
-
 		}
-	}
-
-	matchmaking() {
-		socket.send(JSON.stringify({op : "matchMaking"}));
 	}
 
 	newGame() {
 		do {
 			var name = prompt("Please enter a valid game name:", "");	
-			console.log(name);
 		} while (name == "");
 		
 		if(name != null && name != undefined) {
-			socket.send(JSON.stringify({op : "GameName" , value : name}));
 			admin = name;
+			socket.send(JSON.stringify({op : "GameName" , value : name}));
 		}
 	}
+		
+	getGameSettings() {
+	    var val, mode;
 
-	enableKeys() {
-		window.addEventListener('keydown', ListenerKeys, false);
+	    var radios = document.getElementById('setDifficulty').elements["radio"];
+	    
+	    for (var i = 0, len = radios.length; i < len; i++) {
+	        if (radios[i].checked) { 
+	            val = radios[i].value;
+	            break;
+	        }
+	    }
+	  
+	  	radios = document.getElementById('setMode').elements["radio"];
+	    
+	    for (var i = 0, len = radios.length; i < len; i++) {
+	        if (radios[i].checked) { 
+	            mode = radios[i].value; 
+	            break; 
+	        }
+	    }
+
+		socket.send(JSON.stringify({op : "createGame" , value : admin, dif : val, gameMode : mode}));
+	}
+
+	cancelGameSettings() {
+		$("#room").hide();
+		$("#settings").hide();
+		$("#waitJoin").hide();
+		$("#lobby").show();
+	}
+
+	cancelWait (myVar, j) {
+		clearInterval(myVar);
+		clearTimeout(j);
+
+		$("#waitJoin").hide();
+	}
+
+	joinGame(joinNameVal) {
+		socket.send(JSON.stringify({op : "requestRoomData" , value : joinNameVal}));
+	}
+
+	joinGameUI() {
+		inGame = true;
+
+		$("#room").show();
+		$("#lobby").hide();	
+		$("#settings").hide();
+		$("#waitJoin").hide();
+		$("#listChat").hide();
+
+		window.addEventListener('keydown', event => this.keys(event), false);
 	}
 	
-	disableKeys() {
-		window.removeEventListener('keydown', ListenerKeys, false);
+	leaveGame() {
+		inGame = false;
+
+		this.foods = [];
+
+		for (var id in this.snakes) {			
+			this.snakes[id] = null;
+			delete this.snakes[id];
+		}
+		
+		this.setDirection('none');
+
+		window.removeEventListener('keydown', event => this.keys(event), false);
+		
+		$("#room").hide();
+		$("#lobby").show();
+
+		socket.send(JSON.stringify({op : "LeaveGame"}));
 	}
 
 	keys(e) {
 		var code = e.keyCode;
+
 		if (code > 36 && code < 41) {
 			switch (code) {
 			case 37:
@@ -501,39 +554,6 @@ class Game {
 		}
 	}
 	
-	joinGame(joinNameVal) {
-		socket.send(JSON.stringify({op : "requestRoomData" , value : joinNameVal}));
-	}
-	
-	joinGameUI() {
-		inGame = true;
-		$("#room").show();
-		$("#lobby").hide();	
-		$("#listChat").hide();
-		$("#waitJoin").hide();
-		this.enableKeys();
-		$("#settings").hide();
-	}
-	
-	leaveGame() {
-		var isAd = !(admin == "" || admin == undefined || admin == null);
-		inGame = false;
-		socket.send(JSON.stringify({op : "LeaveGame" , isAdmin : isAd}));
-		this.foods = [];
-
-		for (var id in this.snakes) {			
-			this.snakes[id] = null;
-			delete this.snakes[id];
-		}
-		
-		this.setDirection('none');
-
-		this.disableKeys();
-		
-		$("#room").hide();
-		$("#lobby").show();
-	}
-
 	sendChat() {
 		var msg = document.getElementById("mensajetext").value;
 
@@ -543,49 +563,6 @@ class Game {
 		}
 	}
 }
-function getGameSettings() {
-	
-    var val;
-    var mode;
-    var radios = document.getElementById('setDifficulty').elements["radio"];
-    
-    for (var i=0, len=radios.length; i<len; i++) {
-        if ( radios[i].checked ) { 
-            val = radios[i].value; 
-            break;
-        }
-    }
-  
-  	radios = document.getElementById('setMode').elements["radio"];
-    
-    for (var i=0, len=radios.length; i<len; i++) {
-        if ( radios[i].checked ) { 
-            mode = radios[i].value; 
-            break; 
-        }
-    }
-  
-
-    // return value of checked radio or undefined if none checked
-	socket.send(JSON.stringify({op : "createGame" , value : admin, dif : val, gameMode : mode}));
-
-}
-
-function cancelGameSettings(){
-	$("#room").hide();
-	$("#lobby").show();
-	$("#waitJoin").hide();
-	$("#settings").hide();
-}
-
-//function joinGameHandler(e) {
-//    game.joinGame(e.target.getAttribute("id"));
-//}
-
-function ListenerKeys(event) {
-	game.keys(event);
-}
-
 
 $(document).ready(function() {
 	$("#room").hide();
@@ -594,11 +571,14 @@ $(document).ready(function() {
 	
 	game = new Game();
     game.initialize();
-    document.getElementById("listChatButton").addEventListener("click", () => $("#listChat").toggle());
-    document.getElementById("chatButton").addEventListener("click", () =>game.sendChat());
-    document.getElementById("getValue").addEventListener("click", () =>getGameSettings());
-    document.getElementById("getValueCancel").addEventListener("click", () =>cancelGameSettings());
-    document.getElementById("matchMaking").addEventListener("click", () => game.matchmaking());
+
+    document.getElementById("matchMaking").addEventListener("click", () => socket.send(JSON.stringify({op : "matchMaking"})));
     document.getElementById("newGame").addEventListener("click", () => game.newGame());
     document.getElementById("leaveGame").addEventListener("click", () => game.leaveGame());
+
+    document.getElementById("getValue").addEventListener("click", () => game.getGameSettings());
+    document.getElementById("getValueCancel").addEventListener("click", () => game.cancelGameSettings());
+
+    document.getElementById("chatButton").addEventListener("click", () =>game.sendChat());
+    document.getElementById("listChatButton").addEventListener("click", () => $("#listChat").toggle());
 });
