@@ -1,15 +1,32 @@
 var Console = {};
+var Chat = {};
 
 Console.log = (function(message) {
 	var console = document.getElementById('console');
 	var p = document.createElement('p');
 	p.style.wordWrap = 'break-word';
 	p.innerHTML = message;
+
 	console.appendChild(p);
 	while (console.childNodes.length > 25) {
 		console.removeChild(console.firstChild);
 	}
+
 	console.scrollTop = console.scrollHeight;
+});
+
+Chat.log = (function(message) {
+	var chat = document.getElementById('chat');
+	var p = document.createElement('p');
+	p.style.wordWrap = 'break-word';
+	p.innerHTML = message;
+
+	chat.appendChild(p);
+	while (chat.childNodes.length > 25) {
+		chat.removeChild(chat.firstChild);
+	}
+
+	chat.scrollTop = chat.scrollHeight;
 });
 
 let game;
@@ -401,21 +418,36 @@ class Game {
 		 			leyen.innerHTML ="";
 
 		 			for( var i = 0; i<packet.names.length; i++){
-		 				leyen.innerHTML += '<p id="j_' +i + '"'+ ' > • ' + packet.names[i] + ': '+ packet.scores[i] + '\n\r </p>';
+		 				leyen.innerHTML += '<p id="j_' +i + '"'+ ' > • ' + packet.names[i] + ': '+ packet.scores[i] + '\n </p>';
 		 				document.getElementById("j_"+i).style.color = packet.colors[i];
 		 				document.getElementById("j_"+i).style.textShadow = "1px 1px black";
 		 			}
 		 		break;
 
 		 		case 'updateRecords':
-		 			console.log("He entrado en update records");
 		 			var r = document.getElementById("records");
 		 			r.innerHTML = "";
 
 		 			for(var i = 0; i<packet.records.length; i++){
-		 				r.innerHTML += '<p id="r_' +i + '"'+ ' > • ' + packet.records[i][0] + ': '+ packet.records[i][1] + '\n\r </p>';
+		 				r.innerHTML += '<p id="r_' +i + '"'+ ' > • ' + packet.records[i][0] + ': '+ packet.records[i][1] + '\n </p>';
 		 			}
 		 		break;
+
+		 		case'chat':
+					Chat.log(packet.msg);
+					break;
+
+				case 'updateChatList':
+					var l = document.getElementById("listChat");
+		 			l.innerHTML = "";
+
+		 			for(var i = 0; i<packet.names.length; i++){
+		 				l.innerHTML += '<p id="l_' +i + '"'+ ' > • ' + packet.names[i] + '\n </p>';
+		 			}
+					break;
+
+				default:
+					break;
 			}
 
 		}
@@ -476,7 +508,8 @@ class Game {
 	joinGameUI() {
 		inGame = true;
 		$("#room").show();
-		$("#lobby").hide();
+		$("#lobby").hide();	
+		$("#listChat").hide();
 		$("#waitJoin").hide();
 		this.enableKeys();
 		$("#settings").hide();
@@ -499,6 +532,15 @@ class Game {
 		
 		$("#room").hide();
 		$("#lobby").show();
+	}
+
+	sendChat() {
+		var msg = document.getElementById("mensajetext").value;
+
+		if (msg != "") {
+			document.getElementById("mensajetext").value = "";
+			socket.send(JSON.stringify({op : "chat" , message : msg}));
+		}
 	}
 }
 function getGameSettings() {
@@ -548,9 +590,12 @@ function ListenerKeys(event) {
 $(document).ready(function() {
 	$("#room").hide();
 	$("#settings").hide();
+	$("#listChat").hide();
 	
 	game = new Game();
     game.initialize();
+    document.getElementById("listChatButton").addEventListener("click", () => $("#listChat").toggle());
+    document.getElementById("chatButton").addEventListener("click", () =>game.sendChat());
     document.getElementById("getValue").addEventListener("click", () =>getGameSettings());
     document.getElementById("getValueCancel").addEventListener("click", () =>cancelGameSettings());
     document.getElementById("matchMaking").addEventListener("click", () => game.matchmaking());
