@@ -19,15 +19,23 @@ import net.minidev.json.parser.ParseException;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class SnakeHandler extends TextWebSocketHandler {
 
@@ -45,9 +53,7 @@ public class SnakeHandler extends TextWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
     	
     	if(session.getId().equals("0"))
-    	{
-    		readFile();
-    	}
+            readFile();
     	
         sessions.put(session.getId(), session);
 
@@ -68,6 +74,8 @@ public class SnakeHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage("{\"type\":\"roomsCreated\", \"rooms\":" + mapeado + "}"));
             }
         }
+        
+        session.sendMessage(new TextMessage("{\"type\":\"updateRecords\", \"records\":" + recordsToJSON() + "}"));
     }
 
     @Override
@@ -275,15 +283,20 @@ public class SnakeHandler extends TextWebSocketHandler {
                 break;
                 
                 case "deleteRoomRequest": {
-                	String gn = (String) session.getAttributes().get("snakeGame");
-                	SnakeGame snGm = SnakeGames.get(gn);
-                
-                     for (Snake snake : snGm.getSnakes()) {
-                         snGm.removeSnake(snake);
-                     }
-                     for (WebSocketSession participant : sessions.values()) {
-                         participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
-                     }
+                    String gn = (String) session.getAttributes().get("snakeGame");
+                    SnakeGame snGm = SnakeGames.get(gn);
+                    
+                    for (Snake snake : snGm.getSnakes()) {
+                        playerScores.putIfAbsent(snake.getName(), 0);
+                        int newScore = playerScores.get(snake.getName()) + snake.getScore();
+                        playerScores.put(snake.getName(), newScore);
+                        snGm.removeSnake(snake);
+                    }
+
+                    for (WebSocketSession participant : sessions.values()) {
+                        participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
+                        participant.sendMessage(new TextMessage("{\"type\":\"updateRecords\", \"records\":" + writeFile() + "}"));
+                    }
                      SnakeGames.remove(gn);
                 }
                 break;
@@ -380,6 +393,7 @@ public class SnakeHandler extends TextWebSocketHandler {
         Snake s = (Snake) session.getAttributes().get(SNAKE_ATT);
         String gn = (String) session.getAttributes().get("snakeGame");
         sessions.remove(session.getId());
+        connectedPlayers.remove(s.getName());
 
         if ((gn != null) && SnakeGames.containsKey(gn)) {
             System.out.println("Print 1");
@@ -418,64 +432,86 @@ public class SnakeHandler extends TextWebSocketHandler {
             }
         }
     }
-    
-    public void readFile()
-    {
-    	String fileName = System.getProperty("user.dir") + File.separator + "src" + File.separator + "main" 
-        + File.separator + "resources" + File.separator + "static" + File.separator + "Records.json";
-    	
-        try 
-        {
-            JSONParser parser = null;
-            
-            JSONArray players = (JSONArray) parser.parse(new FileReader(fileName));
-            
-            for (int i = 0; i < players.length(); i++)
-            {
-            	JSONObject player = players.getJSONObject(i);
-            	
-            	String name = (String) player.get("name");
-            	Integer score = (Integer) player.get("score");
-            	
-            	playerScores.put(name, score);
+    public StringBuilder recordsToJSON() {
+        StringBuilder sb = new StringBuilder();
+        
+        synchronized (playerScores) {
+            List<Entry<String, Integer>> list = new ArrayList<>(playerScores.entrySet());
+            list.sort(Entry.comparingByValue());
+
+            if (list.size() <= 0) {
+                sb.append("[]");
+            } else {
+                sb.append("[");
+                for (int i = list.size() - 1; i > list.size() - 11 && i >= 0; i--) {
+                    sb.append("[\"" + list.get(i).getKey() + "\",");
+                    sb.append(list.get(i).getValue().toString() + "] ,");
+                }
+                sb.deleteCharAt(sb.length() - 1);
+                sb.append("]");
             }
         }
-        catch(FileNotFoundException e) //Excepción: fichero no encontrado.
-        {        	
-        	System.out.println("");
-        	System.out.println("---------- JAVA EXCEPTION ----------");
-        	System.out.println("");
-            System.out.println("El archivo no existe en la ruta del proyecto.");
-            System.out.println("");
-            System.out.println("------------------------------------");
-            System.out.println("");
+        
+        return sb;
+    }
+    
+    public StringBuilder writeFile()
+    {
+        String fileName = System.getProperty("user.dir") + File.separator + "src" + File.separator + "main" 
+        + File.separator + "resources" + File.separator + "static" + File.separator + "Records.json";
+        
+        StringBuilder recs = recordsToJSON();
+        
+        // Escritura en el archivo
+        File myFile = new File(fileName);
+
+        try {
+            myFile.createNewFile();
             
-            try
-            {
-	            String json = new ObjectMapper().writeValueAsString(playerScores);
-	            
-	            File f = new File(fileName);
-	            f.createNewFile();
-	            
-	            FileOutputStream fOut = new FileOutputStream(f);
-	            OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
-	            
-	            myOutWriter.append(json);
-	            
-	            myOutWriter.close();
-	            fOut.close();
+            FileOutputStream fOut = new FileOutputStream(myFile);
+            OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
+            
+            myOutWriter.append(recs);
+            
+            myOutWriter.close();
+            fOut.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        
+        return recs;
+    }
+    
+    public void readFile() {
+        String fileName = System.getProperty("user.dir") + File.separator + "src" + File.separator + "main"
+                + File.separator + "resources" + File.separator + "static" + File.separator + "Records.json";
+
+        try {
+            File myFile2 = new File(fileName);
+            FileInputStream fIn;
+            fIn = new FileInputStream(myFile2);
+            BufferedReader myReader = new BufferedReader(new InputStreamReader(fIn));
+            String aDataRow = "";
+            String aBuffer = "";
+            while ((aDataRow = myReader.readLine()) != null) {
+                aBuffer += aDataRow;
             }
-            catch(IOException ex) 
-            {
-            	ex.printStackTrace();                  
+            myReader.close();
+            System.out.println("aBuffer: "+ aBuffer);
+            
+            JSONArray jsonarray = new JSONArray(aBuffer);
+            for (int i = 0; i < jsonarray.length(); i++) {
+                JSONArray jug = jsonarray.getJSONArray(i);
+                String name =  jug.getString(0);
+                int pun =  Integer.parseInt(jug.getString(1));
+                
+                playerScores.put(name, pun);
             }
-        } 
-        catch (JSONException e) 
-        {
-			e.printStackTrace();
-		} catch (ParseException e) 
-        {
-			e.printStackTrace();
-		}
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (JSONException ex) {
+            Logger.getLogger(SnakeHandler.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 }

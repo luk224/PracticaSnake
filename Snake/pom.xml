@@ -43,6 +43,18 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
 		</dependency>
+	 <dependency>
+	  <groupId>com.vaadin.external.google</groupId>
+	  <artifactId>android-json</artifactId>
+	  <version>0.0.20131108.vaadin1</version>
+	  <type>jar</type>
+	 </dependency>
+	 <dependency>
+	  <groupId>net.minidev</groupId>
+	  <artifactId>json-smart</artifactId>
+	  <version>2.2.1</version>
+	  <type>jar</type>
+	 </dependency>
 	</dependencies>
 
 	<build>

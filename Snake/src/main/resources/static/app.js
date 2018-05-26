@@ -175,8 +175,9 @@ class Game {
 		}
 
 		socket.onmessage = (message) => {
+			console.log(message.data);
 			var packet = JSON.parse(message.data);
-			//console.log(packet);
+			
 			switch (packet.type) {
 				case 'update':
 					for (var i = 0; i < packet.data.length; i++) {
@@ -348,7 +349,6 @@ class Game {
 						//mostrar resultados
 					$("#room").hide();
 					$("#lobby").show();
-					alert("Game over");
 					this.foods = [];
 					this.setDirection('none');
 
@@ -361,7 +361,8 @@ class Game {
 					if(!(admin == "" || admin == undefined || admin == null	)){
 						socket.send(JSON.stringify({op : "deleteRoomRequest"})); 
 					} 
-					
+					alert("Game over"); //Cambiar por div
+
 					break;
 				case 'notEnoughPlayers':
 					alert("You need to be at least 2 players in the room to start a game.") 
@@ -404,8 +405,16 @@ class Game {
 		 				document.getElementById("j_"+i).style.color = packet.colors[i];
 		 				document.getElementById("j_"+i).style.textShadow = "1px 1px black";
 		 			}
+		 		break;
 
+		 		case 'updateRecords':
+		 			console.log("He entrado en update records");
+		 			var r = document.getElementById("records");
+		 			r.innerHTML = "";
 
+		 			for(var i = 0; i<packet.records.length; i++){
+		 				r.innerHTML += '<p id="r_' +i + '"'+ ' > • ' + packet.records[i][0] + ': '+ packet.records[i][1] + '\n\r </p>';
+		 			}
 		 		break;
 			}
 

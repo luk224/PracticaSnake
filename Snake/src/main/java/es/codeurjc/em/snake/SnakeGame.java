@@ -20,7 +20,7 @@ public class SnakeGame {
         
         private Random rn;
         
-        private final static int MAX_FOODS = 5; //10
+        private final static int MAX_FOODS = 10; 
         private final static int MAX_LENGTH = 10;
 	private final static long TICK_DELAY = 100;
         public int difficulty = 1; //1: fácil; 2: medio; 4: difícil
