@@ -1,11 +1,10 @@
-	package es.codeurjc.em.snake;
+package es.codeurjc.em.snake;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -14,24 +13,18 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import net.minidev.json.parser.JSONParser;
-import net.minidev.json.parser.ParseException;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Level;
@@ -42,20 +35,19 @@ public class SnakeHandler extends TextWebSocketHandler {
     private static final String SNAKE_ATT = "snake";
 
     private AtomicInteger snakeIds = new AtomicInteger(0);
-
     private List<WebSocketSession> lobbyPlayers = Collections.synchronizedList(new ArrayList<>());
     private Set<String> connectedPlayers = Collections.synchronizedSet(new HashSet<>());
     private ConcurrentHashMap<String, Integer> playerScores = new ConcurrentHashMap<>();
-    
     private ConcurrentHashMap<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, SnakeGame> SnakeGames = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-    	
-    	if(session.getId().equals("0"))
+
+        if (session.getId().equals("0")) {
             readFile();
-    	
+        }
+
         sessions.put(session.getId(), session);
 
         int id = snakeIds.getAndIncrement();
@@ -75,7 +67,6 @@ public class SnakeHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage("{\"type\":\"roomsCreated\", \"rooms\":" + mapeado + "}"));
             }
         }
-        
         session.sendMessage(new TextMessage("{\"type\":\"updateRecords\", \"records\":" + recordsToJSON() + "}"));
     }
 
@@ -83,7 +74,6 @@ public class SnakeHandler extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
 
         try {
-
             String payload = message.getPayload();
 
             if (payload.equals("ping")) {
@@ -98,24 +88,21 @@ public class SnakeHandler extends TextWebSocketHandler {
             switch (node.get("op").asText()) {
                 case "Name": {
                     String n = node.get("value").asText();
-                    
                     synchronized (connectedPlayers) {
-	                    if (connectedPlayers.contains(n)) {
-	                    	session.sendMessage(new TextMessage("{\"type\":\"userNameNotValid\"}"));
-	                    }
-	                    else {
-	                    	connectedPlayers.add(n);
-	                    	s.setName(n);
-	                        addLobby(session);
-	                    }
+                        if (connectedPlayers.contains(n)) {
+                            session.sendMessage(new TextMessage("{\"type\":\"userNameNotValid\"}"));
+                        } else {
+                            connectedPlayers.add(n);
+                            s.setName(n);
+                            addLobby(session);
+                        }
                     }
                 }
-
                 break;
+                    
                 case "Dir": {
                     Direction d = Direction.valueOf(node.get("value").asText().toUpperCase());
                     s.setDirection(d);
-
                 }
                 break;
 
@@ -130,7 +117,6 @@ public class SnakeHandler extends TextWebSocketHandler {
                         }
                     }
                 }
-
                 break;
 
                 case "createGame": {
@@ -141,10 +127,8 @@ public class SnakeHandler extends TextWebSocketHandler {
                     for (WebSocketSession participant : sessions.values()) {
                         participant.sendMessage(new TextMessage("{\"type\":\"newRoom\", \"name\":\"" + gn2 + "\"}"));
                     }
-
                     session.sendMessage(new TextMessage("{\"type\":\"newRoomCreator\", \"name\":\"" + gn2 + "\"}"));
                 }
-
                 break;
 
                 case "JoinGame": {
@@ -152,153 +136,68 @@ public class SnakeHandler extends TextWebSocketHandler {
                     SnakeGame snGm = SnakeGames.get(gn3);
 
                     removeLobby(session);
-                    
+
                     synchronized (snGm) {
-
                         if (snGm.getSnakes().size() < 4) {
-                            session.getAttributes().put("snakeGame", gn3);
-
-                            snGm.addSnake(s);
-
-                            StringBuilder sb = new StringBuilder();
-                            for (Snake snake : snGm.getSnakes()) {
-                                sb.append(String.format("{\"id\": %d, \"color\": \"%s\"}", snake.getId(), snake.getHexColor()));
-                                sb.append(',');
-                            }
-                            sb.deleteCharAt(sb.length() - 1);
-                            String msg = String.format("{\"type\": \"join\",\"data\":[%s]}", sb.toString());
-
-                            snGm.broadcast(msg);
-                            if (snGm.getSnakes().size() == 4 && !snGm.empezada()) {
-                                int[] comida = snGm.newFood();
-                                snGm.broadcast("{\"type\":\"updateFood\", \"id\":" + 0 + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
-                                
-                                msg = String.format("{\"type\": \"hideStartButton\"}", sb.toString());
-                                snGm.broadcast(msg);
-                                snGm.startTimer();
-
-                            }
-                            snGm.getFoods(session);
-
+                            joinGameConfirmed(session, gn3, snGm, s);
                         } else {
                             session.sendMessage(new TextMessage("{\"type\":\"gameFull\", \"idRoom\":\"" + gn3 + "\"}"));
                         }
-
                     }
-
                 }
                 break;
-                case "tryToJoin": { //CodigoCopiado de JoinGame, se puede hacer limpieza
+
+                case "tryToJoin": {
                     String gn3 = node.get("value").asText();
                     SnakeGame snGm = SnakeGames.get(gn3);
-                    
                     synchronized (snGm) {
-
                         if (snGm.getSnakes().size() < 4) {
-                            removeLobby(session);
-                        	
-                            session.getAttributes().put("snakeGame", gn3);
-                            snGm.addSnake(s);
-                            StringBuilder sb = new StringBuilder();
-                            for (Snake snake : snGm.getSnakes()) {
-                                sb.append(String.format("{\"id\": %d, \"color\": \"%s\"}", snake.getId(), snake.getHexColor()));
-                                sb.append(',');
-                            }
-                            sb.deleteCharAt(sb.length() - 1);
-                            String msg = String.format("{\"type\": \"join\",\"data\":[%s]}", sb.toString());
-
-                            snGm.broadcast(msg);
-                            
-                            if (snGm.getSnakes().size() == 4 && !snGm.empezada()) {
-                                int[] comida = snGm.newFood();
-                                snGm.broadcast("{\"type\":\"updateFood\", \"id\":" + 0 + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
-                                
-                                msg = String.format("{\"type\": \"hideStartButton\"}", sb.toString());
-                                snGm.broadcast(msg);
-                                snGm.startTimer();
-                            }
-                            snGm.getFoods(session);
+                            joinGameConfirmed(session, gn3, snGm, s);
                         }
                     }
                 }
-
                 break;
+
                 case "LeaveGame": {
-
-                    boolean adminLeave = node.get("isAdmin").asBoolean();
                     String gn = (String) session.getAttributes().get("snakeGame");
-
                     SnakeGame snGm = SnakeGames.get(gn);
-                    
                     synchronized (snGm) {
 
                         if (session.getId().equals(snGm.getAdmin())) {
-                            /*for (Snake snake : SnakeGames.get(gn).getSnakes()) {			
-                             msg = String.format("{\"type\": \"kicked\", \"id\": %d}", snake.getId());
-								
-                             SnakeGames.get(gn).broadcast(msg);
-								
-                             SnakeGames.get(gn).removeSnake(snake);
-                             }*/
-
-                            snGm.broadcast(String.format("{\"type\": \"kicked\"}"));
-                            for (Snake snake : snGm.getSnakes()) {
-                            	addLobby(snake.getSession());
-                                snGm.removeSnake(snake);
-                            }
-                            for (WebSocketSession participant : sessions.values()) {
-                                participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
-                            }
-                            SnakeGames.remove(gn);
-
-                        } else if (snGm.empezada() && snGm.getSnakes().size() == 2) {
-                        	addLobby(session);
-                        	
-                            String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
-                            snGm.broadcast(msg);
+                            session.sendMessage(new TextMessage(String.format("{\"type\": \"kicked\"}")));
                             snGm.removeSnake(s);
-
-                            snGm.stopTimer();
-                            snGm.broadcast(String.format("{\"type\": \"endGame\" }"));
-                            //\"id\":"+gn+"
-                            for (WebSocketSession participant : sessions.values()) {
-                                participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
-                            }
-                            SnakeGames.remove(gn);
-                        } else {//No ha sido el admin y la partida sigue. solo se va uno.
-                        	addLobby(session);
-                        	
+                        } else if (snGm.empezada() && snGm.getSnakes().size() == 2) {
+                            addLobby(session);
                             String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
-
-                            snGm.broadcast(msg);
+                            session.sendMessage(new TextMessage(msg));
+                            session.sendMessage(new TextMessage("{\"type\": \"endGame\" }"));
+                            SnakeGames.remove(gn);
+                        } else {
+                            addLobby(session);
+                            String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
+                            session.sendMessage(new TextMessage(msg));
                             snGm.removeSnake(s);
                         }
+                        
+                        exitGame(session, snGm, gn, s);
                     }
-                    //session.getAttributes().put("snakeGame", null);
                 }
                 break;
 
-                //startGame
                 case "startGame": {
                     SnakeGame snGm = SnakeGames.get((String) session.getAttributes().get("snakeGame"));
                     if (snGm.getSnakes().size() > 1) {
-                        snGm.startTimer();
-
-                        int[] comida = snGm.newFood();
-                        snGm.broadcast("{\"type\":\"updateFood\", \"id\":" + 0 + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
-                     
-                        session.sendMessage(new TextMessage(String.format("{\"type\": \"enoughPlayers\"}")));
+                        startGame(snGm);
                     } else {
                         session.sendMessage(new TextMessage(String.format("{\"type\": \"notEnoughPlayers\"}")));
                     }
                 }
-
                 break;
-                
+
                 case "deleteRoomRequest": {
                     String gn = (String) session.getAttributes().get("snakeGame");
                     SnakeGame snGm = SnakeGames.get(gn);
-                    
+
                     for (Snake snake : snGm.getSnakes()) {
                         playerScores.putIfAbsent(snake.getName(), 0);
                         int newScore = playerScores.get(snake.getName()) + snake.getScore();
@@ -310,11 +209,11 @@ public class SnakeHandler extends TextWebSocketHandler {
                         participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
                         participant.sendMessage(new TextMessage("{\"type\":\"updateRecords\", \"records\":" + writeFile() + "}"));
                     }
-                     SnakeGames.remove(gn);
+                    SnakeGames.remove(gn);
                 }
                 break;
 
-                case "matchMaking":{
+                case "matchMaking": {
                     synchronized (SnakeGames) {
                         int aux = 0;
                         String auxK = "";
@@ -322,14 +221,13 @@ public class SnakeHandler extends TextWebSocketHandler {
                             if ((SnakeGames.get(k).getSnakes().size() < 4) && (SnakeGames.get(k).getSnakes().size() > aux)) {
                                 aux = SnakeGames.get(k).getSnakes().size();
                                 auxK = k;
-
                                 if (aux == 3) {
                                     break;
                                 }
                             }
                         }
 
-                        if (auxK != "") {
+                        if (!"".equals(auxK)) {
                             System.out.println("auxK " + auxK);
                             session.sendMessage(new TextMessage(String.format("{\"type\":\"matchMaking\", \"room\":\"" + auxK + "\"}")));
                         } else {
@@ -337,75 +235,95 @@ public class SnakeHandler extends TextWebSocketHandler {
                         }
                     }
                 }
-                    break;
-                case "requestRoomData":{
-                    SnakeGame g = SnakeGames.get(node.get("value").asText());
-                    
-                    StringBuilder sb = new StringBuilder();
-                        for (Snake sn : g.getSnakes()) {
-                            sb.append(sn.getName());
-                            sb.append(", ");
-                        }
-                        sb.deleteCharAt(sb.length() - 1);
-                        sb.deleteCharAt(sb.length() - 1);
-                        
-                        String dif;
-                        if(g.difficulty == 1){
-                            dif = "Easy";
-                        }else if(g.difficulty == 2){
-                            dif = "Normal";
-                        }else{
-                            dif = "Hard";
-                        }
-                        
-                        String mode = "";
-                        if(g.gameMode == 1){
-                            mode = "Max number of fruits";
-                        }else if(g.gameMode == 2){
-                            mode = "Max length of snakes";
-                        }
-                        
-                    session.sendMessage(new TextMessage(String.format("{\"type\":\"joinConfirmed\", \"number\":" + g.getSnakes().size() + ", \"room\":\"" + node.get("value").asText() + "\", \"difficulty\":\"" + dif + "\", \"gameMode\":\"" + mode + "\",\"players\":\""+ sb +"\"}")));
-                }                    
                 break;
-                
-                case "chat":
-                	String msg = "<b>" + s.getName() + ":</b> " + node.get("message").asText();
-                	
-                	for (WebSocketSession participant : lobbyPlayers) {
-                			participant.sendMessage(new TextMessage("{\"type\":\"chat\", \"msg\":\"" + msg + "\"}"));
-                	}
-                	break;
-                
-                default:	
+                    
+                case "requestRoomData": {
+                    requestRoomData(session, node.get("value").asText());
+                }
+                break;
+
+                case "chat":{
+                    String msg = "<b>" + s.getName() + ":</b> " + node.get("message").asText();
+
+                    for (WebSocketSession participant : lobbyPlayers) {
+                        participant.sendMessage(new TextMessage("{\"type\":\"chat\", \"msg\":\"" + msg + "\"}"));
+                    }
+                }
+                break;
+
+                default:
                     break;
             }
-
         } catch (Exception e) {
             System.err.println("Exception processing message " + message.getPayload());
             e.printStackTrace(System.err);
         }
     }
-    /*
-     @Override
-     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
 
-     System.out.println("Connection closed. Session " + session.getId());
+    public void requestRoomData(WebSocketSession session, String rum) throws IOException {
+        SnakeGame g = SnakeGames.get(rum);
+        StringBuilder sb = new StringBuilder();
+        for (Snake sn : g.getSnakes()) {
+            sb.append(sn.getName());
+            sb.append(", ");
+        }
+        if (sb.length() > 1) {
+            sb.deleteCharAt(sb.length() - 1);
+            sb.deleteCharAt(sb.length() - 1);
+        }
 
-     Snake s = (Snake) session.getAttributes().get(SNAKE_ATT);
-     String gn = (String) session.getAttributes().get("snakeGame");
-     synchronized (SnakeGames) {
-     if (gn != null && SnakeGames.contains(gn)) {
+        String dif;
+        if (g.difficulty == 1) {
+            dif = "Easy";
+        } else if (g.difficulty == 2) {
+            dif = "Normal";
+        } else {
+            dif = "Hard";
+        }
 
-     SnakeGames.get(gn).removeSnake(s);
-     String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
-     SnakeGames.get(gn).broadcast(msg);
-     }
-     }
+        String mode = "";
+        if (g.gameMode == 1) {
+            mode = "Max number of fruits";
+        } else if (g.gameMode == 2) {
+            mode = "Max length of snakes";
+        }
 
-     sessions.remove(session.getId());
+        session.sendMessage(new TextMessage(String.format("{\"type\":\"joinConfirmed\", \"number\":" + g.getSnakes().size() + ", \"room\":\"" + rum + "\", \"difficulty\":\"" + dif + "\", \"gameMode\":\"" + mode + "\",\"players\":\"" + sb + "\"}")));
+    }
 
-     }*/
+    public void joinGameConfirmed(WebSocketSession session, String gn3, SnakeGame snGm, Snake s) throws Exception {
+        removeLobby(session);
+
+        session.getAttributes().put("snakeGame", gn3);
+        snGm.addSnake(s);
+        StringBuilder sb = new StringBuilder();
+        
+        for (Snake snake : snGm.getSnakes()) {
+            sb.append(String.format("{\"id\": %d, \"color\": \"%s\"}", snake.getId(), snake.getHexColor()));
+            sb.append(',');
+        }
+        
+        if (sb.length() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        
+        String msg = String.format("{\"type\": \"join\",\"data\":[%s]}", sb.toString());
+
+        snGm.broadcast(msg);
+
+        if (snGm.getSnakes().size() == 4 && !snGm.empezada()) {
+            startGame(snGm);
+        }
+        snGm.getFoods(session);
+    }
+
+    public void startGame(SnakeGame snGm) throws Exception {
+        snGm.startTimer();
+
+        int[] comida = snGm.newFood();
+        snGm.broadcast("{\"type\":\"updateFood\", \"id\":" + 0 + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
+        snGm.broadcast("{\"type\": \"hideStartButton\"}");
+    }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
@@ -413,101 +331,98 @@ public class SnakeHandler extends TextWebSocketHandler {
         System.out.println("Connection closed. Session " + session.getId());
 
         Snake s = (Snake) session.getAttributes().get(SNAKE_ATT);
+        
         String gn = (String) session.getAttributes().get("snakeGame");
+        
         sessions.remove(session.getId());
-        
         removeLobby(session);
-        
         connectedPlayers.remove(s.getName());
 
-        if ((gn != null) && SnakeGames.containsKey(gn)) {
-            System.out.println("Print 1");
+        if ((gn != null) && SnakeGames.containsKey(gn)) { //Si estaba en una partida...
             SnakeGame snGm = SnakeGames.get(gn);
             synchronized (snGm) {
-
                 snGm.removeSnake(s);
-                if (session.getId().equals(snGm.getAdmin())) {
-                    System.out.println("If");
-                    snGm.broadcast(String.format("{\"type\": \"kicked\"}"));
-                    for (Snake snake : snGm.getSnakes()) {
-                        snGm.removeSnake(snake);
-                    }
-                    for (WebSocketSession participant : sessions.values()) {
-                        participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
-                    }
-                    SnakeGames.remove(gn);
-
-                } else if (snGm.empezada() && snGm.getSnakes().size() == 1) {
-                    System.out.println("Else if  ");
-                    String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
-                    snGm.broadcast(msg);
-                    snGm.stopTimer();
-                    snGm.broadcast(String.format("{\"type\": \"endGame\" }"));
-                    for (WebSocketSession participant : sessions.values()) {
-                        participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
-                    }
-                    SnakeGames.remove(gn);
-                } else {//No ha sido el admin y la partida sigue. solo se va uno.
-                    System.out.println("Else");
-                    String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
-
-                    snGm.broadcast(msg);
-                }
-
+                exitGame(session, snGm, gn, s);
             }
         }
     }
-    
-    public void addLobby(WebSocketSession session)
-    {
-    	lobbyPlayers.add(session);
-    	
-    	refreshLobby();
+
+    public void exitGame(WebSocketSession session, SnakeGame snGm, String gn, Snake s) throws Exception {
+        if (session.getId().equals(snGm.getAdmin())) {
+            snGm.broadcast(String.format("{\"type\": \"kicked\"}"));
+            
+            for (Snake snake : snGm.getSnakes()) {
+                addLobby(snake.getSession());
+                snGm.removeSnake(snake);
+            }
+            
+            for (WebSocketSession participant : sessions.values()) {
+                participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
+            }
+            SnakeGames.remove(gn);
+
+        } else if (snGm.empezada() && snGm.getSnakes().size() == 1) {
+            String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
+            
+            snGm.broadcast(msg);
+            snGm.stopTimer();
+            snGm.broadcast(String.format("{\"type\": \"endGame\" }"));
+            
+            for (WebSocketSession participant : sessions.values()) {
+                participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
+            }
+            SnakeGames.remove(gn);
+            
+        } else { //No ha sido el admin y la partida sigue. solo se va uno.
+            String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
+            snGm.broadcast(msg);
+        }
     }
-    
-    public void removeLobby(WebSocketSession session)
-    {
-    	synchronized (lobbyPlayers)
-    	{
-	    	if (lobbyPlayers.contains(session))
-	    	{
-	    		lobbyPlayers.remove(session);
-	    	}
-    	}
-    	
-    	refreshLobby();
+
+    public void addLobby(WebSocketSession session) {
+        lobbyPlayers.add(session);
+        refreshLobby();
     }
-    
-    public void refreshLobby()
-    {
-    	try {
-    		
-	        StringBuilder sb = new StringBuilder();
-	        
-	        for (WebSocketSession participant : lobbyPlayers) {
-	        	Snake s = (Snake) participant.getAttributes().get(SNAKE_ATT);
-	        	
-	            sb.append('"');
-	            sb.append(s.getName());
-	            sb.append('"');
-	            sb.append(',');
-	        }
-	        
-	        sb.deleteCharAt(sb.length() - 1);
-	
-	        String msg = String.format("{\"type\": \"updateChatList\", \"names\" :[ " + sb + " ]}");
-	
-	    	for (WebSocketSession participant : lobbyPlayers) {
-					participant.sendMessage(new TextMessage(msg));
-	    	}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+
+    public void removeLobby(WebSocketSession session) {
+        synchronized (lobbyPlayers) {
+            if (lobbyPlayers.contains(session)) {
+                lobbyPlayers.remove(session);
+            }
+        }
+        refreshLobby();
     }
-    
+
+    public void refreshLobby() {
+        try {
+            StringBuilder sb = new StringBuilder();
+
+            for (WebSocketSession participant : lobbyPlayers) {
+                Snake s = (Snake) participant.getAttributes().get(SNAKE_ATT);
+
+                sb.append('"');
+                sb.append(s.getName());
+                sb.append('"');
+                sb.append(',');
+            }
+            
+            if (sb.length() > 0) {
+                sb.deleteCharAt(sb.length() - 1);
+            }
+            String msg = String.format("{\"type\": \"updateChatList\", \"names\" :[ " + sb + " ]}");
+
+            for (WebSocketSession participant : lobbyPlayers) {
+                participant.sendMessage(new TextMessage(msg));
+            }
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public StringBuilder recordsToJSON() {
         StringBuilder sb = new StringBuilder();
-        
+
         synchronized (playerScores) {
             List<Entry<String, Integer>> list = new ArrayList<>(playerScores.entrySet());
             list.sort(Entry.comparingByValue());
@@ -520,41 +435,40 @@ public class SnakeHandler extends TextWebSocketHandler {
                     sb.append("[\"" + list.get(i).getKey() + "\",");
                     sb.append(list.get(i).getValue().toString() + "] ,");
                 }
-                sb.deleteCharAt(sb.length() - 1);
+                if (sb.length() > 0) {
+                    sb.deleteCharAt(sb.length() - 1);
+                }
                 sb.append("]");
             }
         }
-        
         return sb;
     }
-    
-    public StringBuilder writeFile()
-    {
-        String fileName = System.getProperty("user.dir") + File.separator + "src" + File.separator + "main" 
-        + File.separator + "resources" + File.separator + "static" + File.separator + "Records.json";
-        
+
+    public StringBuilder writeFile() {
+        String fileName = System.getProperty("user.dir") + File.separator + "src" + File.separator + "main"
+                + File.separator + "resources" + File.separator + "static" + File.separator + "Records.json";
+
         StringBuilder recs = recordsToJSON();
-        
+
         // Escritura en el archivo
         File myFile = new File(fileName);
 
         try {
             myFile.createNewFile();
-            
+
             FileOutputStream fOut = new FileOutputStream(myFile);
             OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
-            
+
             myOutWriter.append(recs);
-            
+
             myOutWriter.close();
             fOut.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        
         return recs;
     }
-    
+
     public void readFile() {
         String fileName = System.getProperty("user.dir") + File.separator + "src" + File.separator + "main"
                 + File.separator + "resources" + File.separator + "static" + File.separator + "Records.json";
@@ -570,17 +484,16 @@ public class SnakeHandler extends TextWebSocketHandler {
                 aBuffer += aDataRow;
             }
             myReader.close();
-            System.out.println("aBuffer: "+ aBuffer);
-            
+            System.out.println("aBuffer: " + aBuffer);
+
             JSONArray jsonarray = new JSONArray(aBuffer);
             for (int i = 0; i < jsonarray.length(); i++) {
                 JSONArray jug = jsonarray.getJSONArray(i);
-                String name =  jug.getString(0);
-                int pun =  Integer.parseInt(jug.getString(1));
-                
+                String name = jug.getString(0);
+                int pun = Integer.parseInt(jug.getString(1));
+
                 playerScores.put(name, pun);
             }
-
         } catch (IOException e) {
             e.printStackTrace();
         } catch (JSONException ex) {
