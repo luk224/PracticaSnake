@@ -68,7 +68,7 @@ public class SnakeGame {
 	public void removeSnake(Snake snake) {
 
 		snakes.remove(Integer.valueOf(snake.getId()));
-                snake.resetState();
+        snake.resetState();
 		int count = numSnakes.decrementAndGet();
                 
 		if (count == 0) {
@@ -112,6 +112,14 @@ public class SnakeGame {
     private synchronized void tick() {
          
             try {
+            	
+                if (checkGameFinished()){
+                    broadcast(String.format("{\"type\": \"endGame\" }"));
+                    stopTimer();
+                }
+                else
+                {
+            	
                 for (Snake snake : getSnakes()) {
                     snake.update(getSnakes());
                     boolean b = snake.handleCollisions(getSnakes());
@@ -144,12 +152,8 @@ public class SnakeGame {
 
                 broadcast(msg);
                 
-                if (checkGameFinished()){
-                    
-                    broadcast(String.format("{\"type\": \"endGame\" }"));
-                    stopTimer();
-                }
 
+                }
             } catch (Throwable ex) {
                 System.err.println("Exception processing tick()");
                 ex.printStackTrace(System.err);

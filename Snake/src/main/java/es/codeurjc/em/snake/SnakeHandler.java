@@ -1,8 +1,11 @@
-package es.codeurjc.em.snake;
+	package es.codeurjc.em.snake;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -11,6 +14,18 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import net.minidev.json.parser.JSONParser;
+import net.minidev.json.parser.ParseException;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -20,11 +35,20 @@ public class SnakeHandler extends TextWebSocketHandler {
 
     private AtomicInteger snakeIds = new AtomicInteger(0);
 
+    private Set<String> connectedPlayers = Collections.synchronizedSet(new HashSet<>());
+    private ConcurrentHashMap<String, Integer> playerScores = new ConcurrentHashMap<>();
+    
     private ConcurrentHashMap<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, SnakeGame> SnakeGames = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+    	
+    	if(session.getId().equals("0"))
+    	{
+    		readFile();
+    	}
+    	
         sessions.put(session.getId(), session);
 
         int id = snakeIds.getAndIncrement();
@@ -65,8 +89,16 @@ public class SnakeHandler extends TextWebSocketHandler {
             switch (node.get("op").asText()) {
                 case "Name": {
                     String n = node.get("value").asText();
-                    s.setName(n);
-
+                    
+                    synchronized (connectedPlayers) {
+	                    if (connectedPlayers.contains(n)) {
+	                    	session.sendMessage(new TextMessage("{\"type\":\"userNameNotValid\"}"));
+	                    }
+	                    else {
+	                    	connectedPlayers.add(n);
+	                    	s.setName(n);
+	                    }
+                    }
                 }
 
                 break;
@@ -160,6 +192,16 @@ public class SnakeHandler extends TextWebSocketHandler {
                             String msg = String.format("{\"type\": \"join\",\"data\":[%s]}", sb.toString());
 
                             snGm.broadcast(msg);
+                            
+                            if (snGm.getSnakes().size() == 4 && !snGm.empezada()) {
+                                int[] comida = snGm.newFood();
+                                snGm.broadcast("{\"type\":\"updateFood\", \"id\":" + 0 + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
+                                
+                                msg = String.format("{\"type\": \"hideStartButton\"}", sb.toString());
+                                snGm.broadcast(msg);
+                                snGm.startTimer();
+                            }
+                            snGm.getFoods(session);
                         }
                     }
                 }
@@ -231,15 +273,20 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
 
                 break;
-                case "deleteRoom":{
-                    String gn = (String) session.getAttributes().get("snakeGame");
-                    for (WebSocketSession participant : sessions.values()) {
-                        participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
-                    }
-                    SnakeGames.remove(gn);
+                
+                case "deleteRoomRequest": {
+                	String gn = (String) session.getAttributes().get("snakeGame");
+                	SnakeGame snGm = SnakeGames.get(gn);
+                
+                     for (Snake snake : snGm.getSnakes()) {
+                         snGm.removeSnake(snake);
+                     }
+                     for (WebSocketSession participant : sessions.values()) {
+                         participant.sendMessage(new TextMessage("{\"type\":\"deleteRoom\", \"id\":\"" + gn + "\"}"));
+                     }
+                     SnakeGames.remove(gn);
                 }
-                   
-                    break;
+                break;
 
                 case "matchMaking":{
                     synchronized (SnakeGames) {
@@ -369,8 +416,66 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
 
             }
-
         }
     }
-
+    
+    public void readFile()
+    {
+    	String fileName = System.getProperty("user.dir") + File.separator + "src" + File.separator + "main" 
+        + File.separator + "resources" + File.separator + "static" + File.separator + "Records.json";
+    	
+        try 
+        {
+            JSONParser parser = null;
+            
+            JSONArray players = (JSONArray) parser.parse(new FileReader(fileName));
+            
+            for (int i = 0; i < players.length(); i++)
+            {
+            	JSONObject player = players.getJSONObject(i);
+            	
+            	String name = (String) player.get("name");
+            	Integer score = (Integer) player.get("score");
+            	
+            	playerScores.put(name, score);
+            }
+        }
+        catch(FileNotFoundException e) //Excepción: fichero no encontrado.
+        {        	
+        	System.out.println("");
+        	System.out.println("---------- JAVA EXCEPTION ----------");
+        	System.out.println("");
+            System.out.println("El archivo no existe en la ruta del proyecto.");
+            System.out.println("");
+            System.out.println("------------------------------------");
+            System.out.println("");
+            
+            try
+            {
+	            String json = new ObjectMapper().writeValueAsString(playerScores);
+	            
+	            File f = new File(fileName);
+	            f.createNewFile();
+	            
+	            FileOutputStream fOut = new FileOutputStream(f);
+	            OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
+	            
+	            myOutWriter.append(json);
+	            
+	            myOutWriter.close();
+	            fOut.close();
+            }
+            catch(IOException ex) 
+            {
+            	ex.printStackTrace();                  
+            }
+        } 
+        catch (JSONException e) 
+        {
+			e.printStackTrace();
+		} catch (ParseException e) 
+        {
+			e.printStackTrace();
+		}
+    }
 }
