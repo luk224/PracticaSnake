@@ -61,7 +61,7 @@ public class Snake {
         sendMessage("{\"type\": \"rewardFood\"}");
     }
 
-    protected void sendMessage(String msg) throws Exception {
+    protected synchronized void sendMessage(String msg) throws Exception {
         this.session.sendMessage(new TextMessage(msg));
     }
 

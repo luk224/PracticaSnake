@@ -169,10 +169,11 @@ public class SnakeGame {
         return resultado;
     }
 
-    public void getFoods(WebSocketSession session) throws Exception {
+    public void getFoods(Snake s) throws Exception {
         synchronized (comidas) {
+        	
             for (int comida : comidas.keySet()) {
-                session.sendMessage(new TextMessage("{\"type\":\"updateFood\", \"id\":" + comida + ", \"tru\" : true, \"pos\" : [" + comidas.get(comida)[0] + "," + comidas.get(comida)[1] + "]}"));
+                s.sendMessage("{\"type\":\"updateFood\", \"id\":" + comida + ", \"tru\" : true, \"pos\" : [" + comidas.get(comida)[0] + "," + comidas.get(comida)[1] + "]}");
             }
         }
     }
