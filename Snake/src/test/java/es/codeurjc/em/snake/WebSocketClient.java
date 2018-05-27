@@ -3,6 +3,9 @@ package es.codeurjc.em.snake;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import javax.websocket.ClientEndpoint;
 import javax.websocket.CloseReason;
@@ -46,6 +49,16 @@ public class WebSocketClient {
 		}
 	}
 
+	public boolean join = false;
+	public boolean tryingJoin = false;
+	public boolean hideStartButton = false;
+	public boolean updateFood = false;
+	public boolean update = false;
+	public boolean left = false;
+	public boolean created = false;
+	
+	public List<Integer> records = Collections.synchronizedList(new ArrayList<>());
+	
 	private Session session;
 	private OpenHandler openHandler = s -> {};
 	private CloseHandler closeHandler = (s, r) -> {};
@@ -55,7 +68,7 @@ public class WebSocketClient {
 		session = ContainerProvider.getWebSocketContainer().connectToServer(new InternalClient(), new URI(sServer));
 	}
 
-	public void sendMessage(String sMsg) throws IOException {
+	public synchronized void sendMessage(String sMsg) throws IOException {
 		session.getBasicRemote().sendText(sMsg);
 	}
 
