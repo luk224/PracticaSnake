@@ -61,16 +61,17 @@ public class SnakeTest {
 	 */
 
 	@Test
-	public void testAutoStartFourPlayers() throws Exception {
-		AtomicReference<Boolean> failedUpdateFood1 = new AtomicReference<Boolean>(true);
-		AtomicReference<Boolean> failedUpdate1 = new AtomicReference<Boolean>(true);
-		AtomicReference<Boolean> failedStartGame1 = new AtomicReference<Boolean>(true);
-		AtomicReference<Boolean> failedHideButton1 = new AtomicReference<Boolean>(true);
-		AtomicReference<Boolean> failedRoomAdmin1 = new AtomicReference<Boolean>(true);
-
-		AtomicReference<Boolean> startedGame1 = new AtomicReference<Boolean>(false);
+	public void testAutoStartFourPlayers() throws Exception { //Test que evalúa que la partida comience automáticamente cuando haya 4 jugadores en la sala
 		
-		AtomicReference<Integer> n1 = new AtomicReference<Integer>(0);
+		AtomicReference<Boolean> failedUpdateFood1 = new AtomicReference<Boolean>(true); //Define si se ha hecho una actualización de las comidas correctamente
+		AtomicReference<Boolean> failedUpdate1 = new AtomicReference<Boolean>(true); //Define si se ha recibido actualización de la partida correctamente
+		AtomicReference<Boolean> failedStartGame1 = new AtomicReference<Boolean>(true); //Define si se ha arrancado la partida correctamente
+		AtomicReference<Boolean> failedHideButton1 = new AtomicReference<Boolean>(true); //Define si se ha escondido el botón de comenzar partida del administrador correctamente
+		AtomicReference<Boolean> failedRoomAdmin1 = new AtomicReference<Boolean>(true); //Define si se ha enviado un mensaje especial de administrador a otro usuario
+
+		AtomicReference<Boolean> startedGame1 = new AtomicReference<Boolean>(false); //Define si se ha comenzado la partida
+		
+		AtomicReference<Integer> n1 = new AtomicReference<Integer>(0); //Contador
 		
 		WebSocketClient players[] = new WebSocketClient[4];
 		
@@ -81,18 +82,18 @@ public class SnakeTest {
 			w.onMessage((session, msg) -> {
 				//println("TestMessage: " + msg);
 				
-				if (n1.get() == 4 && !startedGame1.get()) {
-					failedStartGame1.set(false);
+				if (n1.get() == 4 && !startedGame1.get()) { //Cuando se han unido cuatro jugadores y la partida aún no ha comenzado
+					failedStartGame1.set(false); //La partida comienza
 					startedGame1.set(true);
 					
 					try {
-						players[0].disconnect();
+						players[0].disconnect(); //Sale el administrador para que termine la partida
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
 				}
 				
-				if (msg.contains("\"newRoom\""))
+				if (msg.contains("\"newRoom\"")) //Cuando se haya creado una sala, los usuarios entran automáticamente
 				{
 					try {
 						w.sendMessage("{\"op\" : \"JoinGame\" , \"value\" : \"Sala1\"}");
@@ -102,7 +103,7 @@ public class SnakeTest {
 				}
 				else if (msg.contains("\"newRoomCreator\""))
 				{
-					failedRoomAdmin1.set(!session.getId().equals(players[0].getSession().getId()));
+					failedRoomAdmin1.set(!session.getId().equals(players[0].getSession().getId())); //Se comprueba el mensaje del administrador
 				}
 				else if (msg.contains("\"join\"") && (msg.length() - msg.replaceAll("id","").length())/2 == 4)
 				{
@@ -143,7 +144,7 @@ public class SnakeTest {
 	}
 		
 	@Test
-	public void testManualStart() throws Exception {
+	public void testManualStart() throws Exception { //Test que evalúa que el administrador pueda empezar la partida antes de ser 4 siempre que haya dos o más
 		
 		AtomicReference<Boolean> failedUpdateFood0 = new AtomicReference<Boolean>(true);
 		AtomicReference<Boolean> failedUpdate0 = new AtomicReference<Boolean>(true);
@@ -166,7 +167,7 @@ public class SnakeTest {
 			w.onMessage((session, msg) -> {
 				//println("TestMessage: " + msg);
 				
-				if (n0.get() == 2 && !startedGame0.get()) {
+				if (n0.get() == 2 && !startedGame0.get()) { //Cuando hay dos jugadores y aún no ha empezado la partida, se arranca
 					failedStartGame0.set(false);
 					startedGame0.set(true);
 					
@@ -208,7 +209,7 @@ public class SnakeTest {
 					int aux = n0.get() + 1;
 					n0.set(aux);
 				}
-				else if (msg.contains("\"notEnoughPlayers\""))
+				else if (msg.contains("\"notEnoughPlayers\"")) //Si solo hay un jugador, la partida aún no puede comenzar
 				{
 					failedStartGame0.set(true);
 				}
@@ -224,31 +225,31 @@ public class SnakeTest {
         
         assertTrue("The message should be received by the admin, but it is being received by another player", !failedRoomAdmin0.get());
         
-        players[0].sendMessage("{\"op\" : \"startGame\"}");
+        players[0].sendMessage("{\"op\" : \"startGame\"}"); //Se intenta empezar la partida cuando solo hay un jugador en la sala
         
         sleep(1000);
         
-        assertTrue("Game shouldn't have started yet (not enough players)", failedStartGame0.get());
+        assertTrue("Game shouldn't have started yet (not enough players)", failedStartGame0.get()); //La partida no debería comenzar
         
         players[1].connect("ws://127.0.0.1:9000/snake");
-        players[1].sendMessage("{\"op\" : \"JoinGame\" , \"value\" : \"Sala2\"}");
+        players[1].sendMessage("{\"op\" : \"JoinGame\" , \"value\" : \"Sala2\"}"); //Se une otro jugador a la sala
         
         Thread.sleep(1000);
         
         assertTrue("Game shouldn't have started yet (Start Button not pressed)", failedStartGame0.get());
         
-        players[0].sendMessage("{\"op\" : \"startGame\"}");
+        players[0].sendMessage("{\"op\" : \"startGame\"}"); //Se vuelve a intentar empezar la partida, ahora que hay dos
         
         Thread.sleep(1000);
         
         assertTrue("First message should be hideStartButton", !failedHideButton0.get());
         assertTrue("First message should be UpdateFood", !failedUpdateFood0.get());
         assertTrue("First message should be Update", !failedUpdate0.get());
-        assertTrue("Game should have started (not all players did an update)", !failedStartGame0.get());
+        assertTrue("Game should have started (not all players did an update)", !failedStartGame0.get()); //La partida debería haber comenzado correctamente
 	}
 	
 	@Test
-	public void testWaitJoin() throws Exception {
+	public void testWaitJoin() throws Exception { //Test que evalúa que cuando una sala está llena y un usuario se intenta unir, se quede a la espera intentándolo
 		
 		AtomicReference<Boolean> failedRoomAdmin2 = new AtomicReference<Boolean>(true);
 		
@@ -279,7 +280,7 @@ public class SnakeTest {
 				{
 					w.join = true;
 				}
-				else if (msg.contains("\"gameFull\""))
+				else if (msg.contains("\"gameFull\"")) //Si la sala está llena, se programa una tarea que trata de conectarse periódicamente
 				{
 					ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 			        scheduler.scheduleAtFixedRate(() -> {
@@ -317,24 +318,23 @@ public class SnakeTest {
         assertTrue("The message should be received by the admin, but it is being received by another player", !failedRoomAdmin2.get());
        
         players[4].connect("ws://127.0.0.1:9000/snake");
-        players[4].sendMessage("{\"op\" : \"JoinGame\" , \"value\" : \"Sala3\"}");
+        players[4].sendMessage("{\"op\" : \"JoinGame\" , \"value\" : \"Sala3\"}"); //El quinto usuario intenta conectarse a una sala llena
         
         sleep(1000);
         
-        assertTrue("The player shouldn't have joined (Room is full)", !players[4].join);
+        assertTrue("The player shouldn't have joined (Room is full)", !players[4].join); //El usuario no debería haber podido unirse
 
-        players[1].sendMessage("{\"op\" : \"LeaveGame\"}");
+        players[1].sendMessage("{\"op\" : \"LeaveGame\"}"); //Un usuario (distinto del administrador) abandona la partida
         
         sleep(1000);
         
-        assertTrue("The player should have joined", players[4].join);
+        assertTrue("The player should have joined", players[4].join); //El usuario debería haber logrado unirse
 	}
     
     @Test
-    public void testEndGameOnePlayer() throws Exception
-    {
+    public void testEndGameOnePlayer() throws Exception { //Test que evalúa que se termine una partida automáticamente cuando solo quede un jugador en la sala
 		AtomicReference<Boolean> failedRoomAdmin3 = new AtomicReference<Boolean>(true);
-		AtomicReference<Boolean> finishedGame3 = new AtomicReference<Boolean>(false);
+		AtomicReference<Boolean> finishedGame3 = new AtomicReference<Boolean>(false); //Define si se ha terminado la partida
     	
     	int nPlayers = 4;
 		
@@ -359,7 +359,7 @@ public class SnakeTest {
 				{
 					failedRoomAdmin3.set(!session.getId().equals(players[0].getSession().getId()));
 				}
-				else if (msg.contains("\"endGame\""))
+				else if (msg.contains("\"endGame\"")) //Recibe un mensaje si ha terminado la partida
 				{
 					try {
 						finishedGame3.set(true);
@@ -390,17 +390,17 @@ public class SnakeTest {
         
         sleep(1000);
         
-        assertTrue("The game should not have ended (more than 2 players remaining)", !finishedGame3.get());
+        assertTrue("The game should not have ended (more than 2 players remaining)", !finishedGame3.get()); //Tras abandonar dos jugadores de cuatro, la partida aún no debería haber terminado
 
         players[3].sendMessage("{\"op\" : \"LeaveGame\"}");
         
         sleep(1000);
         
-        assertTrue("The game should have ended (less than 2 players remaining)", finishedGame3.get());
+        assertTrue("The game should have ended (less than 2 players remaining)", finishedGame3.get()); //Tras abandonar la penúltima persona, la partida debería haber terminado
     }
     
 	@Test
-	public void testLoad() throws Exception {
+	public void testLoad() throws Exception { //Test de carga
 		int nPlayers = 10;
 		
 		WebSocketClient players[] = new WebSocketClient[nPlayers];
@@ -421,7 +421,7 @@ public class SnakeTest {
 						e.printStackTrace();
 					}
 				}
-				else if (msg.contains("\"leave\"") || msg.contains("\"kicked\"") || msg.contains("\"endGame\""))
+				else if (msg.contains("\"leave\"") || msg.contains("\"kicked\"") || msg.contains("\"endGame\"")) //Comprueba si el jugador ha abandonado la partida de cualquiera de las maneras posibles
 				{
 					w.left = true;
 					w.created = false;
@@ -431,7 +431,7 @@ public class SnakeTest {
 					w.join = true;
 					w.tryingJoin = false;
 				}
-				else if (msg.contains("\"gameFull\""))
+				else if (msg.contains("\"gameFull\"")) //Si un usuario intenta acceder a una sala llena, se quedará intentándolo de nuevo
 				{
 					ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 			        scheduler.scheduleAtFixedRate(() -> {
@@ -453,7 +453,7 @@ public class SnakeTest {
 			        		scheduler.shutdown();
 			        }, 500, 500, TimeUnit.MILLISECONDS);
 				}
-				else if (msg.contains("\"updateRecords\""))
+				else if (msg.contains("\"updateRecords\"")) //Al recibir la lista de récords, se parsea y se añade a una lista local de cada cliente
 				{
 					Pattern p = Pattern.compile(",-?\\d+");
 					Matcher m = p.matcher(msg);
@@ -470,14 +470,14 @@ public class SnakeTest {
 			
 			players[i] = w;
 			players[i].connect("ws://127.0.0.1:9000/snake");
-			players[i].sendMessage("{\"op\" : \"createGame\" , \"value\" : \"Sala_" + players[i].getSession().getId() + "\", \"dif\" : 1, \"gameMode\" : 1}");
+			players[i].sendMessage("{\"op\" : \"createGame\" , \"value\" : \"Sala_" + players[i].getSession().getId() + "\", \"dif\" : 1, \"gameMode\" : 1}"); //Cada jugador crea una sala
 		}
 		
 		sleep(1000);
 		
 		for (int i = 0; i < nPlayers; i++)
 		{
-			assertTrue("Room should have been created", players[i].created);
+			assertTrue("Room should have been created", players[i].created); //Se comprueba que se han creado las 10 salas
 			assertTrue("Player " + i + " shouldn't have left the room yet", !players[i].left);
 		}
 			
@@ -485,29 +485,30 @@ public class SnakeTest {
 			
 		for (int i = 0; i < nPlayers; i++)
 		{
-			players[i].sendMessage("{\"op\" : \"LeaveGame\"}");
+			players[i].sendMessage("{\"op\" : \"LeaveGame\"}"); //Tras dos segundos, todos los usuarios abandonan sus salas
 		}
 
 		sleep(1000);
         
         for (int i = 0; i < nPlayers; i++)
 		{
-        	assertTrue("Player " + i + " should have left the room", players[i].left);
+        	assertTrue("Player " + i + " should have left the room", players[i].left); //Se comprueba que todos han salido
 		}
                 
         sleep(1000);
 
         
-        
+        //El primer y el sexto jugador crean las salas SalaA y SalaB:
         players[0].sendMessage("{\"op\" : \"createGame\" , \"value\" : \"SalaA\", \"dif\" : 1, \"gameMode\" : 1}");
         players[5].sendMessage("{\"op\" : \"createGame\" , \"value\" : \"SalaB\", \"dif\" : 1, \"gameMode\" : 1}");
         
         sleep(1000);
         
-        assertTrue("Players should have created rooms A and B", players[0].created && players[5].created);
+        assertTrue("Players should have created rooms A and B", players[0].created && players[5].created); //Se comprueba que se han creado las salas correctamente
         
         sleep(1000);
         
+        //Se unen o intentan unir los demás jugadores:
         players[1].sendMessage("{\"op\" : \"JoinGame\" , \"value\" : \"SalaA\"}");
         players[2].sendMessage("{\"op\" : \"JoinGame\" , \"value\" : \"SalaA\"}");
         players[3].sendMessage("{\"op\" : \"JoinGame\" , \"value\" : \"SalaA\"}");
@@ -530,20 +531,20 @@ public class SnakeTest {
         for (int i = 0; i < nPlayers; i++)
 		{
         	if (players[i].join)
-        		players[i].sendMessage("{\"op\" : \"LeaveGame\"}");
+        		players[i].sendMessage("{\"op\" : \"LeaveGame\"}"); //Tras diez segundos, todos los usuarios abandonan las salas
 		}
         
         sleep(1000);
         
         for (int i = 0; i < nPlayers; i++)
 		{
-        	assertTrue("Player " + i + " should have left the room", players[i].left);
+        	assertTrue("Player " + i + " should have left the room", players[i].left); //Se comprueba que todos han abandonado las salas correctamente
 		}
         
         sleep(1000);
         
         
-        
+        //Se comprueba que todas las listas de récords de los clientes sean iguales:
         for (int i = 1; i < nPlayers; i++)
         {
         	if (!players[i-1].records.equals(players[i].records))
@@ -552,6 +553,7 @@ public class SnakeTest {
         
         sleep(1000);
         
+        //Se comprueba que la lista de récords está ordenada de manera decreciente
         for (int i = 0; i < players[0].records.size()-1; i++)
         {
         	//println("" + players[0].records.get(i));
