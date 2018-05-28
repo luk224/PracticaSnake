@@ -13,20 +13,23 @@ import org.springframework.web.socket.WebSocketSession;
 
 public class SnakeGame {
 
-    private String admin;
-    private ConcurrentHashMap<Integer, int[]> comidas = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<Integer, Snake> snakes = new ConcurrentHashMap<>();
+    private String admin; //Almacena la Id de la sesión del administrador de la partida
+    private ConcurrentHashMap<Integer, int[]> comidas = new ConcurrentHashMap<>(); //Mapa de comidas (clave: id; valor: posición [x,y])
+    private ConcurrentHashMap<Integer, Snake> snakes = new ConcurrentHashMap<>(); //Mapa de snakes (clave: id; valor: objeto Snake)
     private static Random rn;
 
-    private final static int MAX_FOODS = 10;
+    //Valores para comprobar el final de la partida:
+    private final static int MAX_FOODS = 10; 
     private final static int MAX_LENGTH = 10;
-    private final static long TICK_DELAY = 100;
+
     public int difficulty = 1; //1: fácil; 2: medio; 4: difícil
     public int gameMode; //1: máx comidas; 2: máx longitud 
     
-    private AtomicBoolean started = new AtomicBoolean(false);
-    private AtomicInteger numSnakes = new AtomicInteger();
-    private AtomicInteger numFoods = new AtomicInteger();
+    private final static long TICK_DELAY = 100;
+    
+    private AtomicBoolean started = new AtomicBoolean(false); //Determina si la partida ha arrancado
+    private AtomicInteger numSnakes = new AtomicInteger(); //Determina el número de snakes que contiene la partida
+    private AtomicInteger numFoods = new AtomicInteger(); //Determina el índice de la comida a generar
     private ScheduledExecutorService scheduler;
 
     public SnakeGame(int dif, String ad, int gm) {
@@ -36,7 +39,7 @@ public class SnakeGame {
         rn = new Random();
     }
 
-    public int[] newFood() {
+    public int[] newFood() { //Genera una nueva comida
         int comida[] = {rn.nextInt(Location.PLAYFIELD_WIDTH / 10) * 10, rn.nextInt(Location.PLAYFIELD_HEIGHT / 10) * 10};
         int count = numFoods.getAndIncrement();
         comidas.put(count, comida);
@@ -63,7 +66,7 @@ public class SnakeGame {
         }
     }
 
-    public void updateLegend() {
+    public void updateLegend() { //Actualiza las puntuaciones en la lista de récords de SnakeHandler cuando se ha terminado una partida
         try {
             StringBuilder sb = new StringBuilder();
             StringBuilder colors = new StringBuilder();
@@ -93,6 +96,7 @@ public class SnakeGame {
             if (scores.length() > 0) {
                 scores.deleteCharAt(scores.length() - 1);
             }
+            //Se notifica de los nuevos records a los clientes:
             String msg = String.format("{\"type\": \"updateLegend\", \"names\" :[ " + sb.toString() + " ], \"colors\" :[" + colors.toString() + "], \"scores\" : [" + scores.toString() + "]}");
             broadcast(msg);
         } catch (Throwable ex) {
@@ -103,10 +107,10 @@ public class SnakeGame {
 
     private synchronized void tick() {
         try {
-            if (checkGameFinished()) {
+            if (checkGameFinished()) { //Si se ha cumplido la condición de final de juego, se para el contador y se manda un mensaje de final de partida
                 broadcast(String.format("{\"type\": \"endGame\" }"));
                 stopTimer();
-            } else {
+            } else { //Si no, se actualiza el juego: movimientos, colisiones, número de comidas, etcétera.
                 for (Snake snake : getSnakes()) {
                     snake.update(getSnakes());
                   
@@ -138,7 +142,7 @@ public class SnakeGame {
                     sb.deleteCharAt(sb.length() - 1);
                 }
                 
-                String msg = String.format("{\"type\": \"update\", \"data\" : [%s]}", sb.toString());
+                String msg = String.format("{\"type\": \"update\", \"data\" : [%s]}", sb.toString()); //Se manda la información actualizada de la partida a los jugadores
                 broadcast(msg);
             }
         } catch (Throwable ex) {
@@ -151,12 +155,12 @@ public class SnakeGame {
         boolean resultado = false;
 
         switch (gameMode) {
-            case 1: //max comidas
+            case 1: //Se acaba la partida al comer un número máximo de comidas
                 if (numFoods.get() > MAX_FOODS * difficulty) {
                     resultado = true;
                 }
                 break;
-            case 2: // max tamaño
+            case 2: //Se acaba la partida al alcanzar una longitud máxima de snake
                 for (Snake s : snakes.values()) {
                     if (s.getLength() > MAX_LENGTH * difficulty) {
                         resultado = true;
@@ -169,7 +173,7 @@ public class SnakeGame {
         return resultado;
     }
 
-    public void getFoods(Snake s) throws Exception {
+    public void getFoods(Snake s) throws Exception { //Actualiza las comidas presentes en el mapa
         synchronized (comidas) {
         	
             for (int comida : comidas.keySet()) {
@@ -214,7 +218,7 @@ public class SnakeGame {
     public void startTimer() {
         started.set(true);
         scheduler = Executors.newScheduledThreadPool(1);
-        scheduler.scheduleAtFixedRate(() -> tick(), TICK_DELAY / difficulty, TICK_DELAY / difficulty, TimeUnit.MILLISECONDS);
+        scheduler.scheduleAtFixedRate(() -> tick(), TICK_DELAY / difficulty, TICK_DELAY / difficulty, TimeUnit.MILLISECONDS); //La velocidad del juego se modifica en función de la dificultad
     }
 
     public void stopTimer() {

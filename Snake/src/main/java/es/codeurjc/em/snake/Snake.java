@@ -18,7 +18,7 @@ public class Snake {
     private final Deque<Location> tail = new ArrayDeque<>();
     private int length = DEFAULT_LENGTH;
 
-    private int score = 0;
+    private int score = 0; //Puntuación que lleva la snake en la partida actual
 
     private final String hexColor;
     private String name;
@@ -33,7 +33,7 @@ public class Snake {
         resetState();
     }
 
-    public synchronized void resetState() {
+    public synchronized void resetState() { //Coloca a la snake quieta en un punto aleatorio del mapa
         this.direction = Direction.NONE;
         this.head = SnakeUtils.getRandomLocation();
         this.tail.clear();
@@ -67,7 +67,7 @@ public class Snake {
 
     public synchronized void update(Collection<Snake> snakes) throws Exception {
         Location nextLocation = this.head.getAdjacentLocation(this.direction);
-        //Esto hace que aprezca por los bordes.
+        //Esto hace que aparezca por los bordes
         if (nextLocation.x >= Location.PLAYFIELD_WIDTH) {
             nextLocation.x = 0;
         }
@@ -80,7 +80,7 @@ public class Snake {
         if (nextLocation.y < 0) {
             nextLocation.y = Location.PLAYFIELD_HEIGHT;
         }
-        //fin de bordes
+
         if (this.direction != Direction.NONE) {
             this.tail.addFirst(this.head);
             if (this.tail.size() > this.length) {
@@ -90,7 +90,7 @@ public class Snake {
         }
     }
 
-    public boolean handleCollisions(Collection<Snake> snakes) throws Exception {
+    public boolean handleCollisions(Collection<Snake> snakes) throws Exception { //Comprueba colisiones entre snakes (incluido una consigo misma)
 
         boolean b = false;
         for (Snake snake : snakes) {
@@ -100,9 +100,9 @@ public class Snake {
             boolean tailCollision = snake.getTail().contains(this.head);
 
             if (headCollision || tailCollision) {
-                kill();
+                kill(); //Se mata a la snake que ha recibido la colisión
                 if (this.id != snake.id) {
-                    snake.reward();
+                    snake.reward(); //La snake que ha dado el golpe gana un punto, excepto si se ha dado a sí misma
                 }
                 b = true;
             }
@@ -110,7 +110,7 @@ public class Snake {
         return b;
     }
 
-    public int handleCollisionsFoods(ConcurrentHashMap<Integer, int[]> foods) throws Exception {
+    public int handleCollisionsFoods(ConcurrentHashMap<Integer, int[]> foods) throws Exception { //Comprueba colisiones con las comidas
         for (int comida : foods.keySet()) {
             boolean headCollision = (this.getHead().x == foods.get(comida)[0] && this.getHead().y == foods.get(comida)[1]);
             if (headCollision) {

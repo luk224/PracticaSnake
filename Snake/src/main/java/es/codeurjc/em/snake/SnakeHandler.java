@@ -36,28 +36,28 @@ public class SnakeHandler extends TextWebSocketHandler {
 
     private static final String SNAKE_ATT = "snake";
 
-    private Lock lockRecords = new ReentrantLock();
-    private Lock lockSnakeGames = new ReentrantLock();
-    private Lock lockConnectedPlayers = new ReentrantLock();
+    private Lock lockRecords = new ReentrantLock(); //Lock para manejar el mapa de récords
+    private Lock lockSnakeGames = new ReentrantLock(); //Lock para manejar el mapa de partidas
+    private Lock lockConnectedPlayers = new ReentrantLock(); //Lock para conectar la lista de jugadores en línea
     
-    private AtomicInteger snakeIds = new AtomicInteger(0);
-    private AtomicBoolean loadedRecords = new AtomicBoolean(false);
+    private AtomicInteger snakeIds = new AtomicInteger(0); //Determina la Id de la próxima snake que se una
+    private AtomicBoolean loadedRecords = new AtomicBoolean(false); //Verifica que se hayan cargado los records del fichero
     
-    private List<WebSocketSession> lobbyPlayers = Collections.synchronizedList(new ArrayList<>());
-    private Set<String> connectedPlayers = Collections.synchronizedSet(new HashSet<>());
-    private ConcurrentHashMap<String, Integer> playerScores = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<String, SnakeGame> SnakeGames = new ConcurrentHashMap<>();
+    private List<WebSocketSession> lobbyPlayers = Collections.synchronizedList(new ArrayList<>()); //Lista con los jugadores que no están en ninguna partida
+    private Set<String> connectedPlayers = Collections.synchronizedSet(new HashSet<>()); //Lista de los jugadores que están en línea
+    private ConcurrentHashMap<String, Integer> playerScores = new ConcurrentHashMap<>(); //Mapa de puntuaciones de los jugadores
+    private ConcurrentHashMap<String, WebSocketSession> sessions = new ConcurrentHashMap<>(); //Mapa de sesiones conectadas al servidor
+    private ConcurrentHashMap<String, SnakeGame> SnakeGames = new ConcurrentHashMap<>(); //Mapa de partidas existentes
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
 
     	System.out.println("Welcome Session: " + session.getId());
     	
-        if (!loadedRecords.get())
+        if (!loadedRecords.get()) //Se cargan los récords almacenados en el fichero una sola vez
         {
             readFile();
-        	loadedRecords.set(true);;
+        	loadedRecords.set(true);
         }
 
         sessions.put(session.getId(), session);
@@ -76,12 +76,12 @@ public class SnakeHandler extends TextWebSocketHandler {
             String mapeado = mapper.writeValueAsString(keys);
             System.out.println("" + mapeado + "");
 
-            s.sendMessage("{\"type\":\"roomsCreated\", \"rooms\":" + mapeado + "}");
+            s.sendMessage("{\"type\":\"roomsCreated\", \"rooms\":" + mapeado + "}"); //Se envía la lista de salas existentes al jugador que se conecta
         }
         else
         	lockSnakeGames.unlock();
         
-        s.sendMessage("{\"type\":\"updateRecords\", \"records\":" + recordsToJSON() + "}");
+        s.sendMessage("{\"type\":\"updateRecords\", \"records\":" + recordsToJSON() + "}"); //Se envía la lista de récords al jugador que se conecta
     }
 
     @Override
@@ -100,11 +100,11 @@ public class SnakeHandler extends TextWebSocketHandler {
             Snake s = (Snake) session.getAttributes().get(SNAKE_ATT);
 
             switch (node.get("op").asText()) {
-                case "Name": {
+                case "Name": { //Recibe el nombre de jugador introducido
                     String n = node.get("value").asText();
 
                     lockConnectedPlayers.lock();
-                    if (connectedPlayers.contains(n)) {
+                    if (connectedPlayers.contains(n)) { //Solo acepta el nombre si no existe ya un jugador en línea con el mismo
                     	lockConnectedPlayers.unlock();
                     	
                         s.sendMessage("{\"type\":\"userNameNotValid\"}");
@@ -118,16 +118,16 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
                 break;
                     
-                case "Dir": {
+                case "Dir": { //Recibe direcciones
                     Direction d = Direction.valueOf(node.get("value").asText().toUpperCase());
                     s.setDirection(d);
                 }
                 break;
 
-                case "GameName": {
+                case "GameName": { //Recibe el nombre de sala introducido al intentar crearla
                     String gn1 = node.get("value").asText();
 
-                    if (SnakeGames.containsKey(gn1)) {
+                    if (SnakeGames.containsKey(gn1)) { //Solo acepta el nombre si no existe a la vez una sala con el mismo
                         s.sendMessage("{\"type\":\"gameNameNotValid\"}");
                     } else {
                         s.sendMessage("{\"type\":\"newRoomSettings\"}");
@@ -135,7 +135,7 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
                 break;
 
-                case "createGame": {
+                case "createGame": { //Recibe la configuración para crear una nueva sala
                     String gn2 = node.get("value").asText();
 
                     SnakeGames.put(gn2, new SnakeGame(node.get("dif").asInt(), session.getId(), node.get("gameMode").asInt()));
@@ -148,7 +148,7 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
                 break;
 
-                case "JoinGame": {
+                case "JoinGame": { //Recibe un intento de un usuario de unirse a una sala en concreto
                     String gn3 = node.get("value").asText();
                     SnakeGame snGm = SnakeGames.get(gn3);
 
@@ -156,7 +156,7 @@ public class SnakeHandler extends TextWebSocketHandler {
 
                     if (snGm != null) {
 	                    synchronized (snGm) {
-	                        if (snGm.getSnakes().size() < 4) {
+	                        if (snGm.getSnakes().size() < 4) { //Permite al jugador unirse solo si aún no hay 4 jugadores
 	                            joinGameConfirmed(session, gn3, snGm, s);
 	                        } else {
 	                            s.sendMessage("{\"type\":\"gameFull\", \"idRoom\":\"" + gn3 + "\"}");
@@ -166,7 +166,7 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
                 break;
 
-                case "tryToJoin": {
+                case "tryToJoin": { //Recibe un intento de un usuario de unirse a una sala que está llena
                     String gn3 = node.get("value").asText();
                     SnakeGame snGm = SnakeGames.get(gn3);
                     
@@ -180,24 +180,24 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
                 break;
 
-                case "LeaveGame": {
+                case "LeaveGame": { //Se recibe de un usuario que ha abandonado la partida
                     String gn = (String) session.getAttributes().get("snakeGame");
                     SnakeGame snGm = SnakeGames.get(gn);
                     
                     if (snGm != null) {
 	                    synchronized (snGm) {
 	
-	                        if (session.getId().equals(snGm.getAdmin())) {
+	                        if (session.getId().equals(snGm.getAdmin())) { //Se envía un mensaje especial si el usuario era el administrador de la partida
 	                            s.sendMessage(String.format("{\"type\": \"kicked\"}"));
 	                            snGm.removeSnake(s);
-	                        } else if (snGm.empezada() && snGm.getSnakes().size() == 2) {
+	                        } else if (snGm.empezada() && snGm.getSnakes().size() == 2) { //Si esta acción deja a otro usuario solo en la sala, este también será expulsado
 	                            addLobby(session);
 	                            String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
 	                            s.sendMessage(msg);
 	                            s.sendMessage("{\"type\": \"endGame\" }");
 	                            snGm.removeSnake(s);
 	                            SnakeGames.remove(gn);
-	                        } else {
+	                        } else { //Si no se da ninguno de los dos casos, continúa la partida con normalidad
 	                            addLobby(session);
 	                            String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
 	                            s.sendMessage(msg);
@@ -210,9 +210,9 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
                 break;
 
-                case "startGame": {
+                case "startGame": { //Recibe un intento de comenzar una partida
                     SnakeGame snGm = SnakeGames.get((String) session.getAttributes().get("snakeGame"));
-                    if (snGm.getSnakes().size() > 1) {
+                    if (snGm.getSnakes().size() > 1) { //Si hay al menos dos jugadores, la partida arranca
                         startGame(snGm);
                     } else {
                         s.sendMessage(String.format("{\"type\": \"notEnoughPlayers\"}"));
@@ -220,7 +220,7 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
                 break;
 
-                case "deleteRoomRequest": {
+                case "deleteRoomRequest": { //Recibe un mensaje para actualizar las puntuaciones tras el fin de una partida
                     String gn = (String) session.getAttributes().get("snakeGame");
                     SnakeGame snGm = SnakeGames.get(gn);
                     
@@ -244,11 +244,12 @@ public class SnakeHandler extends TextWebSocketHandler {
                 }
                 break;
 
-                case "matchMaking": {
+                case "matchMaking": { //Recibe el mensaje de un usuario que ha pulsado el botón de matchmaking
                 	int aux = 0;
                     String auxK = "";
                 	
                     lockSnakeGames.lock();
+                    //Se realiza una búsqueda dentro del mapa de partidas que devuelva la partida óptima (aquella con mayor número de jugadores menor que 4):
                     for (String k : SnakeGames.keySet()) {
                         if ((SnakeGames.get(k).getSnakes().size() < 4) && (SnakeGames.get(k).getSnakes().size() > aux)) {
                             aux = SnakeGames.get(k).getSnakes().size();
@@ -264,22 +265,22 @@ public class SnakeHandler extends TextWebSocketHandler {
                         System.out.println("auxK " + auxK);
                         s.sendMessage(String.format("{\"type\":\"matchMaking\", \"room\":\"" + auxK + "\"}"));
                     } else {
-                        s.sendMessage(String.format("{\"type\":\"matchMakingError\"}"));
+                        s.sendMessage(String.format("{\"type\":\"matchMakingError\"}")); //Si no se ha encontrado ninguna partida, se devuelve un error
                     }
                 }
                 break;
                     
-                case "requestRoomData": {
-                    requestRoomData(session, node.get("value").asText());
+                case "requestRoomData": { //Recibe un mensaje de un usuario que quiere entrar a una sala existente
+                    requestRoomData(session, node.get("value").asText()); //Envía al usuario los settings de la sala
                 }
                 break;
 
-                case "chat":{
+                case "chat":{ //Recibe un mensaje de un usuario que ha escrito en el chat
                     String msg = "<b>" + s.getName() + ":</b> " + node.get("message").asText();
 
                     for (WebSocketSession participant : lobbyPlayers) {
                     	Snake spart = (Snake) participant.getAttributes().get(SNAKE_ATT);
-                        spart.sendMessage("{\"type\":\"chat\", \"msg\":\"" + msg + "\"}");
+                        spart.sendMessage("{\"type\":\"chat\", \"msg\":\"" + msg + "\"}"); //Reenvía el mensaje para escribirlo en la caja de chat de todos los usuarios que no se encuentran en ninguna partida
                     }
                 }
                 break;
@@ -307,13 +308,13 @@ public class SnakeHandler extends TextWebSocketHandler {
         removeLobby(session);
         connectedPlayers.remove(s.getName());
 
-        if ((gn != null) && SnakeGames.containsKey(gn)) { //Si estaba en una partida...
+        if ((gn != null) && SnakeGames.containsKey(gn)) { //Si el usuario estaba en una partida...
             SnakeGame snGm = SnakeGames.get(gn);
             
             if (snGm != null) {
 	            synchronized (snGm) {
 	                snGm.removeSnake(s);
-	                exitGame(session, snGm, gn, s);
+	                exitGame(session, snGm, gn, s); //Se notifica al resto de jugadores en la sala de que el usuario ha salido
 	            }
             }
         }
@@ -349,13 +350,14 @@ public class SnakeHandler extends TextWebSocketHandler {
         
         Snake s = (Snake) session.getAttributes().get(SNAKE_ATT);
         try {
+        	//Se envía al usuario la configuración de la sala para mostrársela:
 			s.sendMessage(String.format("{\"type\":\"joinConfirmed\", \"number\":" + g.getSnakes().size() + ", \"room\":\"" + rum + "\", \"difficulty\":\"" + dif + "\", \"gameMode\":\"" + mode + "\",\"players\":\"" + sb + "\"}"));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
     }
 
-    public void joinGameConfirmed(WebSocketSession session, String gn3, SnakeGame snGm, Snake s) throws Exception {
+    public void joinGameConfirmed(WebSocketSession session, String gn3, SnakeGame snGm, Snake s) throws Exception { //Añade un jugador a una partida tras unirse exitosamente
         removeLobby(session);
 
         session.getAttributes().put("snakeGame", gn3);
@@ -375,7 +377,7 @@ public class SnakeHandler extends TextWebSocketHandler {
 
         snGm.broadcast(msg);
 
-        if (snGm.getSnakes().size() == 4 && !snGm.empezada()) {
+        if (snGm.getSnakes().size() == 4 && !snGm.empezada()) { //Si se trata del cuarto jugador, la partida arranca automáticamente
             startGame(snGm);
         }
         
@@ -384,14 +386,15 @@ public class SnakeHandler extends TextWebSocketHandler {
 
     public void startGame(SnakeGame snGm) throws Exception {
         snGm.startTimer();
-
+        
+        //Cuando la partida arranca, se oculta el botón de empezar de la pantalla del administrador y se muestran las comidas actualizadas en el mapa:
         int[] comida = snGm.newFood();
         snGm.broadcast("{\"type\": \"hideStartButton\"}");
         snGm.broadcast("{\"type\":\"updateFood\", \"id\":" + 0 + ", \"tru\" : true, \"pos\" : [" + comida[0] + "," + comida[1] + "]}");
     }
 
     public void exitGame(WebSocketSession session, SnakeGame snGm, String gn, Snake s) throws Exception {
-        if (session.getId().equals(snGm.getAdmin())) {
+        if (session.getId().equals(snGm.getAdmin())) { //Si el usuario que ha salido era el administrador de la sala, se expulsa a los demás
             snGm.broadcast(String.format("{\"type\": \"kicked\"}"));
             
             for (Snake snake : snGm.getSnakes()) {
@@ -405,7 +408,7 @@ public class SnakeHandler extends TextWebSocketHandler {
             }
             SnakeGames.remove(gn);
 
-        } else if (snGm.empezada() && snGm.getSnakes().size() == 1) {
+        } else if (snGm.empezada() && snGm.getSnakes().size() == 1) { //Si esta acción deja a otro usuario solo en la sala, este también será expulsado
             String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
             
             snGm.broadcast(msg);
@@ -418,18 +421,18 @@ public class SnakeHandler extends TextWebSocketHandler {
             }
             SnakeGames.remove(gn);
             
-        } else { //No ha sido el admin y la partida sigue. solo se va uno.
+        } else {  //Si no se da ninguno de los dos casos, continúa la partida con normalidad
             String msg = String.format("{\"type\": \"leave\", \"id\": %d}", s.getId());
             snGm.broadcast(msg);
         }
     }
 
-    public void addLobby(WebSocketSession session) {
+    public void addLobby(WebSocketSession session) { //Añade a un jugador a la lista de jugadores que no están en ninguna partida
         lobbyPlayers.add(session);
         refreshLobby();
     }
 
-    public void removeLobby(WebSocketSession session) {
+    public void removeLobby(WebSocketSession session) { //Elimina a un jugador de la lista de jugadores que no están en ninguna partida
         synchronized (lobbyPlayers) {
             if (lobbyPlayers.contains(session)) {
                 lobbyPlayers.remove(session);
@@ -438,7 +441,7 @@ public class SnakeHandler extends TextWebSocketHandler {
         refreshLobby();
     }
 
-    public void refreshLobby() {
+    public void refreshLobby() { //Actualiza la lista de jugadores que no están en ninguna partida que se muestra en el lobby
         try {
         	synchronized(lobbyPlayers) {
 	            StringBuilder sb = new StringBuilder();
@@ -470,7 +473,7 @@ public class SnakeHandler extends TextWebSocketHandler {
 		}
     }
 
-    public StringBuilder recordsToJSON() {
+    public StringBuilder recordsToJSON() { //Parsea la lista de puntuaciones a JSON para almacenarlos en un fichero
     	lockRecords.lock();
         StringBuilder sb = new StringBuilder();
 
@@ -496,7 +499,7 @@ public class SnakeHandler extends TextWebSocketHandler {
         return sb;
     }
 
-    public StringBuilder writeFile() {
+    public StringBuilder writeFile() { //Escribe en un fichero la lista de puntuaciones
     	lockRecords.lock();
     	
         String fileName = System.getProperty("user.dir") + File.separator + "src" + File.separator + "main"
@@ -526,7 +529,7 @@ public class SnakeHandler extends TextWebSocketHandler {
         return recs;
     }
 
-    public void readFile() {
+    public void readFile() { //Lee un fichero JSON y rellena la lista de puntuaciones a partir de él
     	lockRecords.lock();
     	
         String fileName = System.getProperty("user.dir") + File.separator + "src" + File.separator + "main"
