@@ -4,78 +4,91 @@
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 		<title> Multiplayer Snake </title>
 		<link rel="stylesheet" href="style.css"></link>
+		<link rel="icon" type="image/png" href="Icon.png" />
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 	</head>
 	<body>
 		<div id="room">
-			<div style="float: left">
+			<div id="borderframe">
 				<canvas id="playground" width="640" height="480"></canvas>
 			</div>
 
-			<div id="console-container">
-				<div id="console"></div>
+			<div id="console-container"> Game log:
+				<div id="console"></div> <br> <br>
+				<button id="leaveGame" class="Button3" type="button"> Leave Game </button>	
 			</div>
 
-			<div id="legend"></div>
-			<button id="leaveGame" type="button"> Leave Game </button>	
+			<div id="legend-container"> Player score:
+				<div id="legend"> </div> <br>
+			</div>
 		</div>
 		
 		<div id="lobby">
-			<div id="chat-container">
+			<div id="chat-container"> Chat:
+				<div id="chat"> </div> <br>
+				<input type="text" id="mensajetext" maxlength="25" style="width: 230px"/>
+				<button id="chatButton" class="Button3"> Send </button> <br>
+				<button id="listChatButton" class="Button3"> Online users </button> <br><br>
+				<button id="cancelButton" type="button" class="Button3"> Cancel Wait </button>
 				<div id="listChat"> </div>
-				<div id="chat"> </div>
-				<input type="text" id="mensajetext" maxlength="25" style="width: 250px"/>
-				<button id="chatButton"> Send </button>
-				<button id="listChatButton"> Online users </button>
 			</div>
 
-			<div id="records"></div>
+			<div id="records-container"> Hall of fame: 
+				<div id="records"></div>
+			</div>
 			
-			<button id="matchMaking" type="button"> Matchmaking </button>
-			<button id="newGame" type="button"> New Game </button>
+			<div id="mainbar">
+				<button id="matchMaking" type="button" class="Button1"> Matchmaking </button>
+				<button id="newGame" type="button" class="Button1"> New Game </button>
+			</div>
+
+			<table id="tableRooms" align= "center" width="50%"></table>
 		</div>
 
-		<div id ="settings">					
-			<form id ="setDifficulty">
-				<h1> Difficulty </h1>
-				<label class="container">
-					<input type="radio" value="1" checked="false" name="radio">
-					<span class="checkmark"></span> Easy
-				</label>
+		<div id="settings-container"> 
+			<div id ="settings">					
+				<form id ="setDifficulty" class="control-group">
+					<h1> Difficulty </h1>
+					<label class="control control-radio">
+						<input type="radio" class="control" value="1" checked="false" name="radio">
+						<span class="checkmark"></span> Easy
+					</label>
 
-				<label class="container">
-					<input type="radio" value="2" checked="true" name="radio">
-					<span class="checkmark"></span> Normal
-				</label>
+					<label class="control control-radio">
+						<input type="radio" class="control" value="2" checked="true" name="radio">
+						<span class="checkmark"></span> Normal
+					</label>
 
-				<label class="container">
-					<input type="radio" value="4" checked="false" name="radio">
-					<span class="checkmark"></span> Hard
-				</label>
-			</form>
+					<label class="control control-radio">
+						<input type="radio" class="control" value="4" checked="false" name="radio">
+						<span class="checkmark"></span> Hard
+					</label>
+				</form>
 
-			<form id="setMode">
-				<h1> Game Mode </h1>
-				<label class="container">
-				  <input type="radio" value="1" checked="true" name="radio">
-				  <span class="checkmark"></span> Max. number of fruits
-				</label>
+				<form id="setMode" class="control-group">
+					<h1> Game Mode </h1>
+					<label class="control control-radio">
+					  <input type="radio" class="control" value="1" checked="true" name="radio">
+					  <span class="checkmark"></span> Max. number of fruits
+					</label>
 
-				<label class="container">
-				  <input type="radio" value="2" checked="false" name="radio">
-				  <span class="checkmark"></span> Max. snake length
-				</label>
-			</form>
+					<label class="control control-radio">
+					  <input type="radio" class="control" value="2" checked="false" name="radio">
+					  <span class="checkmark"></span> Max. snake length
+					</label>
+				</form>
 
-			<button id="getValue" type="button"> Create </button>
-			<button id="getValueCancel" type="button"> Cancel </button>
+				<br> <br>
+
+				<button id="getValue" type="button" class="Button3"> Create </button>
+				<button id="getValueCancel" type="button" class="Button3"> Cancel </button>
+			</div>
 		</div>
 
-		<div id="waitJoin">
-			<p id="pWaitJoin"></p>
-			<button id="cancelButton" type="button" hidden="true"> Cancel </button>
-		</div>
-		
+		<p id="AuthorNames"> Alejandro Camuñas Casas <br> Andrés Felipe García <br> Raquel Gastón Vicente </p>
+
 		<script src="app.js"></script>
+		
+		<audio  autoplay loop><source src="music.mp3" type="audio/mpeg"></audio>
 	</body>
 </html>

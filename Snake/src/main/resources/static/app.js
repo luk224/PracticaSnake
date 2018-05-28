@@ -39,6 +39,16 @@ Chat.log = (function(message) {
 });
 
 
+function cancelWait (myVar, j) {
+	$("#cancelButton").hide();
+
+	Chat.log("<b> Server: Wait aborted </b>");
+
+	clearInterval(myVar);
+	clearTimeout(j);
+}
+
+
 class Snake {
 
 	constructor() {
@@ -197,7 +207,7 @@ class Game {
 				} break;
 
 				case 'updateFood': {
-					if(packet.tru) { //Si tru vale true, es una comida nueva, de lo contrario, es una comida a eliminar
+					if(packet.tru) {
 						this.foods[packet.id] = new Food();
 						this.foods[packet.id].location[0] = packet.pos[0];
 						this.foods[packet.id].location[1] = packet.pos[1];
@@ -243,60 +253,116 @@ class Game {
 
 				    btn.appendChild(t);
 				    btn.setAttribute("id", "startGame");
+				    btn.setAttribute("class", "Button3");
 				    btn.setAttribute("type", "button");
 				    btn.addEventListener("click", () => socket.send(JSON.stringify({op : "startGame"})));
 					
-					document.getElementById("room").appendChild(btn);
+					document.getElementById("console-container").appendChild(btn);
 
 					socket.send(JSON.stringify({op : "JoinGame" , value : packet.name}));
 				} break;
 					
 				case 'newRoom': {
-					var packname = packet.name;
+				    var packname = packet.name;
 
+					var table = document.getElementById("tableRooms");
+
+					var tr = document.createElement('tr');
+					var td = document.createElement('td');
+					td.setAttribute("width","80%");
+					var tdb = document.createElement('td');
+					tdb.setAttribute("width","20%");
+
+					tr.setAttribute("id",packname);
 					var btn = document.createElement("BUTTON");
-				    var t = document.createTextNode(packname);
+					var divRow = document.createElement('div');
+					divRow.style.display = "inline-block";
+					var divText =  document.createElement('div');
+					divText.style.display = "inherit";
+					divText.style.textAlign = "center";
+					divText.style.overflow = "auto";
 
-				    btn.appendChild(t);
-				    btn.setAttribute("id", packname);
-				    btn.setAttribute("type", "button");
-				    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
+					var divButton = document.createElement('div');
+					btn.style.float = "right";
+					divButton.style.float =  "center";
 
-				    document.getElementById("lobby").appendChild(btn);
+					divText.appendChild(document.createTextNode(packname));
+					divText.style.float =  "center";
+					var t = document.createTextNode("Join");
+
+					btn.appendChild(t);
+					btn.setAttribute("class", "Button2");
+					btn.setAttribute("type", "button");
+					btn.setAttribute("id", packname);
+					tr.setAttribute("class", "tr");
+					btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
+					divButton.appendChild(btn);
+
+					td.appendChild(divText);
+					tdb.appendChild(divButton);
+					tr.appendChild(td);
+					tr.appendChild(tdb);
+					table.appendChild(tr)
 				} break;
 				
 				case 'newRoomSettings':{
 					$("#room").hide();
 					$("#lobby").hide();
-					$("#waitJoin").hide();
-					$("#settings").show();
+					$("#settings-container").show();
 				} break;
 
 				case 'roomsCreated': {
 					var obj = packet.rooms;
-					
+					var table = document.getElementById("tableRooms");
+
 					for (var i = 0; i < obj.length; i++) {
-						var pen = obj[i];
+						var packname = obj[i];
 
+						var tr = document.createElement('tr');
+						var td = document.createElement('td');
+						td.setAttribute("width","80%");
+						var tdb = document.createElement('td');
+						tdb.setAttribute("width","20%");
+
+						tr.setAttribute("id",packname);
 						var btn = document.createElement("BUTTON");
-					    var t = document.createTextNode(pen);
+						var divRow = document.createElement('div');
+						divRow.style.display = "inline-block";
+						var divText =  document.createElement('div');
+						divText.style.display = "inherit";
+						divText.style.textAlign = "center";
+						divText.style.overflow = "auto";
 
-					    btn.appendChild(t);
-					    btn.setAttribute("id", pen);
-					    btn.setAttribute("type", "button");
-					    btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
-					    
-					    document.getElementById("lobby").appendChild(btn);
+						var divButton = document.createElement('div');
+						btn.style.float = "right";
+						divButton.style.float =  "center";
+
+						divText.appendChild(document.createTextNode(packname));
+						divText.style.float =  "center";
+						var t = document.createTextNode("Join");
+
+						btn.appendChild(t);
+						btn.setAttribute("class", "Button2");
+						btn.setAttribute("id", packname);
+						btn.setAttribute("type", "button");
+						tr.setAttribute("class", "tr");
+						btn.addEventListener("click", event => this.joinGame(event.target.getAttribute("id")));
+						divButton.appendChild(btn);
+
+						td.appendChild(divText);
+						tdb.appendChild(divButton);
+						tr.appendChild(td);
+						tr.appendChild(tdb);
+						table.appendChild(tr)
 					}
 				} break;
 
 				case 'gameFull': {
-					$("#waitJoin").show();
 					$("#cancelButton").show();
 
-					document.getElementById("pWaitJoin").innerHTML = "Game is full, trying to connect...";
+					Chat.log("<b> Server: Game is full, trying to connect... </b> ");
 					
-					var myVar = setInterval( ( () => {
+					var myVar = setInterval((() => {
 						if(!inGame)
 							socket.send(JSON.stringify({op : "tryToJoin" , value : packet.idRoom }));
 					}), 500);
@@ -305,14 +371,14 @@ class Game {
 						clearInterval(myVar);
 
 						if(!inGame)
-							document.getElementById("pWaitJoin").innerHTML = "Impossible to join.";
+							Chat.log("<b> Server: Impossible to join. </b>");
 
 						$("#cancelButton").hide();
 
-						document.getElementById("cancelButton").removeEventListener("click", (myVar,j) => this.cancelWait(myVar,j));
+						document.getElementById("cancelButton").removeEventListener("click", function() {cancelWait(myVar,j)});
 					}, 5000);
 
-					document.getElementById("cancelButton").addEventListener("click", (myVar,j) => this.cancelWait(myVar,j));
+					document.getElementById("cancelButton").addEventListener("click", function() {cancelWait(myVar,j)});
 				} break;
 
 				case 'matchMaking': {
@@ -421,7 +487,7 @@ class Game {
 		 			r.innerHTML = "";
 
 		 			for(var i = 0; i<packet.records.length; i++) {
-		 				r.innerHTML += '<p id="r_' +i + '"'+ ' > • ' + packet.records[i][0] + ': '+ packet.records[i][1] + '\n </p>';
+		 				r.innerHTML += '<p id="r_' + i + '"'+ ' > • ' + packet.records[i][0] + ': '+ packet.records[i][1] + '\n </p>';
 		 			}
 		 		} break;
 
@@ -430,7 +496,7 @@ class Game {
 		 			l.innerHTML = "";
 
 		 			for(var i = 0; i<packet.names.length; i++) {
-		 				l.innerHTML += '<p id="l_' +i + '"'+ ' > • ' + packet.names[i] + '\n </p>';
+		 				l.innerHTML += '<p id="l_' + i + '"'+ ' > • ' + packet.names[i] + '\n </p>';
 		 			}
 				} break;
 
@@ -481,17 +547,10 @@ class Game {
 
 	cancelGameSettings() {
 		$("#room").hide();
-		$("#settings").hide();
-		$("#waitJoin").hide();
+		$("#settings-container").hide();
 		$("#lobby").show();
 	}
 
-	cancelWait (myVar, j) {
-		clearInterval(myVar);
-		clearTimeout(j);
-
-		$("#waitJoin").hide();
-	}
 
 	joinGame(joinNameVal) {
 		socket.send(JSON.stringify({op : "requestRoomData" , value : joinNameVal}));
@@ -502,8 +561,7 @@ class Game {
 
 		$("#room").show();
 		$("#lobby").hide();	
-		$("#settings").hide();
-		$("#waitJoin").hide();
+		$("#settings-container").hide();
 		$("#listChat").hide();
 
 		window.addEventListener('keydown', event => this.keys(event), false);
@@ -564,11 +622,13 @@ class Game {
 	}
 }
 
+
 $(document).ready(function() {
 	$("#room").hide();
-	$("#settings").hide();
+	$("#settings-container").hide();
 	$("#listChat").hide();
-	
+	$("#cancelButton").hide();
+
 	game = new Game();
     game.initialize();
 
